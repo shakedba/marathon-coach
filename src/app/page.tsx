@@ -1,0 +1,81 @@
+import { syncNow } from "./actions";
+import { DayActions } from "@/components/DayActions";
+import { Proposals } from "@/components/Proposals";
+import { Setup } from "@/components/Setup";
+import { WorkoutCard } from "@/components/WorkoutCard";
+import * as db from "@/lib/db";
+import { dbConfigured, loadWeek } from "@/lib/data";
+import { diffDays, fmtPace, todayLocal, weekday } from "@/lib/dates";
+import { DOW, pick, tr } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
+import { readinessFlag } from "@/lib/metrics";
+import { RACES } from "@/lib/plan";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+export default async function Today() {
+  const lang = await getLang();
+  const t = tr(lang);
+  if (!dbConfigured()) return <Setup />;
+  const today = todayLocal();
+  const [{ days }, proposals, wellness, lastSync] = await Promise.all([
+    loadWeek(today, today),
+    db.pendingProposals(),
+    db.wellnessBetween(today, today),
+    db.kvGet<{ at: string; errors: string[] }>("last_sync"),
+  ]);
+  const day = days.find((d) => d.date === today)!;
+  const unanswered = days.filter((d) => d.state === "missed" && !d.status);
+  const flag = day.plan.type !== "rest" ? readinessFlag(wellness[0]) : null;
+  const race = RACES.find((r) => r.date >= today);
+
+  return (
+    <>
+      <div className="spread">
+        <h1>{t("today")} · {DOW[lang][weekday(today)]} <span className="ltr">{today.split("-").reverse().join("/")}</span></h1>
+        {race && <span className="tag">{diffDays(race.date, today)} {t("daysTo")}{pick(lang, race.name)}</span>}
+      </div>
+
+      {flag && <div className="banner">{pick(lang, flag)}</div>}
+      <Proposals items={proposals} lang={lang} />
+
+      {unanswered.map((d) => (
+        <div key={d.date}>
+          <h2>{DOW[lang][weekday(d.date)]} <span className="ltr">{d.date.slice(5)}</span> · {pick(lang, d.plan.title)}</h2>
+          <DayActions date={d.date} lang={lang} ask />
+        </div>
+      ))}
+
+      <WorkoutCard w={day.plan} lang={lang} />
+
+      {day.activities.map((a) => (
+        <div className="card" key={a.id}>
+          <div className="spread">
+            <b>{a.name}</b>
+            <span className={`tag ${day.state}`}>{(a.distanceM / 1000).toFixed(1)} {t("km")}</span>
+          </div>
+          <div className="muted ltr">
+            {fmtPace(a.movingS / (a.distanceM / 1000 || 1))}/km{a.avgHr ? ` · HR ${Math.round(a.avgHr)}` : ""} · {a.source}
+          </div>
+        </div>
+      ))}
+
+      {day.plan.type !== "rest" && !day.status && <DayActions date={today} lang={lang} ran={day.activities.length > 0} />}
+      {day.status && (
+        <p className="muted">
+          {day.status.status === "done" ? t("done") : `${t("skipped")} (${t(`reason_${day.status.reason ?? "time"}` as any)})`}
+          {day.status.feel ? ` · ${day.status.feel}/10` : ""}
+        </p>
+      )}
+
+      <form action={syncNow} className="spread" style={{ marginTop: 16 }}>
+        <span className="muted">
+          {t("lastSync")}: {lastSync ? new Date(lastSync.at).toLocaleString(lang === "he" ? "he-IL" : "en-GB", { timeZone: "Asia/Jerusalem" }) : "—"}
+          {lastSync?.errors?.length ? <span style={{ color: "var(--bad)" }}> · {lastSync.errors.join("; ")}</span> : null}
+        </span>
+        <button>{t("syncNow")}</button>
+      </form>
+    </>
+  );
+}
