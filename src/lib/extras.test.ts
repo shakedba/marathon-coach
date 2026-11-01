@@ -31,11 +31,12 @@ describe("strength schedule (approved 1 Nov 2026)", () => {
     expect(ids("2027-02-17", 10)).toEqual([]);
     expect(strengthFor("2027-02-16")?.id).toBe("B+P"); // exactly 10 days out
   });
-  it("phase 1 never includes squats or lunges", () => {
+  it("phase 1 is bodyweight only: squats/lunges allowed, no dumbbells", () => {
     for (const d of ["2026-11-03", "2026-11-05", "2026-11-10"]) {
       const names = strengthFor(d)!.exercises.map((e) => e.name.en.toLowerCase()).join(" ");
-      expect(names).not.toMatch(/squat|lunge|step-up/);
+      expect(names).not.toMatch(/dumbbell|step-up|bulgarian/);
     }
+    expect(strengthFor("2026-11-03")!.exercises.map((e) => e.name.en)).toContain("Reverse lunge (bodyweight)");
   });
 });
 
@@ -64,8 +65,8 @@ describe("toGarminStrength", () => {
     const g = w.workoutSegments[0].workoutSteps[0];
     expect(g.type).toBe("RepeatGroupDTO");
     expect(g.numberOfIterations).toBe(2);
-    expect(g.workoutSteps).toHaveLength(6);
+    expect(g.workoutSteps).toHaveLength(8);
     expect(g.workoutSteps[0].endCondition.conditionTypeKey).toBe("lap.button");
-    expect(g.workoutSteps[0].description).toMatch(/Glute bridge/);
+    expect(g.workoutSteps[0].description).toMatch(/squat/i);
   });
 });

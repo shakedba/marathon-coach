@@ -39,7 +39,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <form action="/api/garmin/disconnect" method="post"><button>Disconnect</button></form>
           </>
         ) : (
-          <GarminConnect labels={{ email: t("email"), password: t("password"), mfaCode: t("mfaCode"), connect: t("connectGarmin"), pwNote: t("pwNote") }} />
+          <GarminConnect labels={{ email: t("email"), password: t("password"), mfaCode: t("mfaCode"), connect: t("connectGarmin"), pwNote: t("pwNote"), typeNote: t("typeNote") }} />
         )}
         <p className="muted">{t("unofficial")}</p>
       </div>

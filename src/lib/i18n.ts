@@ -67,6 +67,7 @@ const dict = {
   tlvOutline: { en: "Tel Aviv 2027 outline", he: "מתווה תל אביב 2027" },
   target: { en: "Target", he: "יעד" },
   tbd: { en: "set after Haifa", he: "ייקבע אחרי חיפה" },
+  typeNote: { en: "Type your Garmin email and password (don't let the browser autofill the app's own password). If you sign into Garmin with Google/Apple, set a Garmin password first via \"Forgot password\".", he: "הקלד את האימייל והסיסמה של Garmin (לא לתת לדפדפן למלא את הסיסמה של האפליקציה). אם אתה נכנס ל-Garmin עם Google/Apple, קבע קודם סיסמת Garmin דרך \"שכחתי סיסמה\"." },
   pwNote: { en: "Your password is used once to log in and is never stored. Only an encrypted token is kept.", he: "הסיסמה משמשת פעם אחת לכניסה ולא נשמרת. נשמר רק טוקן מוצפן." },
   unofficial: { en: "Unofficial Garmin access: may break if Garmin changes things. Strava keeps runs flowing if it does.", he: "גישה לא רשמית ל-Garmin: עלולה להישבר אם Garmin ישנו משהו. Strava ממשיך להביא ריצות במקרה כזה." },
   pushNote: { en: "Next 7 days of workouts are sent to your Garmin calendar on every sync.", he: "האימונים של 7 הימים הקרובים נשלחים ליומן ה-Garmin בכל סנכרון." },

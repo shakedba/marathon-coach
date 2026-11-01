@@ -22,15 +22,16 @@ export function GarminConnect({ labels }: { labels: L }) {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
         if (stage === "mfa") post("/api/garmin/mfa", { code: f.get("code") });
-        else post("/api/garmin/login", { email: f.get("email"), password: f.get("password") });
+        else post("/api/garmin/login", { email: f.get("garmin_email"), password: f.get("garmin_password") });
       }}
     >
       {stage !== "mfa" ? (
         <>
           <label>{labels.email}</label>
-          <input name="email" type="email" autoComplete="username" required dir="ltr" />
+          <input name="garmin_email" type="email" autoComplete="off" spellCheck={false} autoCapitalize="none" required dir="ltr" placeholder="name@example.com" />
           <label>{labels.password}</label>
-          <input name="password" type="password" autoComplete="current-password" required dir="ltr" />
+          {/* "new-password" stops Chrome from autofilling the app's own saved login into the Garmin field */}
+          <input name="garmin_password" type="password" autoComplete="new-password" required dir="ltr" />
         </>
       ) : (
         <>
@@ -42,6 +43,7 @@ export function GarminConnect({ labels }: { labels: L }) {
         <button className="primary" disabled={stage === "busy"}>{stage === "busy" ? "…" : labels.connect}</button>
       </div>
       {err && <p style={{ color: "var(--bad)" }}>{err}</p>}
+      <p className="muted">{labels.typeNote}</p>
       <p className="muted">{labels.pwNote}</p>
     </form>
   );

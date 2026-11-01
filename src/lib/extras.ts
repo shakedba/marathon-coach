@@ -2,7 +2,7 @@
  * Strength & mobility program (approved 1 Nov 2026).
  * Equipment: dumbbells, pull-up bar, resistance band.
  *
- * Phase 1 (to Haifa): low dose, bodyweight only, no squats/lunges (DOMS risk in taper).
+ * Phase 1 (to Haifa): low dose, bodyweight only (squats/lunges OK per athlete, 1 Nov; no added weight in the taper).
  * Phase 2 (recovery): habit, still light.
  * Phase 3 (Tel Aviv build): Tue = heavier session (B), Thu = light core/hips (C); 1/week in cutback + taper,
  * none in the last 10 days before a race. Mobility after every run.
@@ -40,6 +40,8 @@ const RULE = t(
 
 // ---------- sessions ----------
 const A_EXERCISES: Exercise[] = [
+  ex("Bodyweight squat", "סקוואט במשקל גוף", "10", "10"),
+  ex("Reverse lunge (bodyweight)", "לאנג' אחורי (משקל גוף)", "8 each leg", "8 לכל רגל"),
   ex("Glute bridge (single-leg if easy)", "גשר ישבן (על רגל אחת אם קל)", "12", "12"),
   ex("Slow calf raises: straight + bent knee", "הרמות עקב איטיות: ישרה + ברך כפופה", "15 + 15", "15 + 15"),
   ex("Side plank", "פלאנק צד", "30 s each side", "30 שנ' לכל צד"),
@@ -83,7 +85,7 @@ const MOBILITY: Exercise[] = [
 const sA = (date: string, rounds: number): Extra => ({
   date, kind: "strength", id: rounds === 1 ? "A1" : "A",
   title: t(`Strength A (bodyweight, ${rounds} round${rounds > 1 ? "s" : ""})`, `כוח A (משקל גוף, ${rounds === 1 ? "סבב אחד" : `${rounds} סבבים`})`),
-  minutes: rounds === 1 ? 12 : 20, rounds, exercises: A_EXERCISES, note: RULE,
+  minutes: rounds === 1 ? 15 : 25, rounds, exercises: A_EXERCISES, note: RULE,
 });
 const sC = (date: string): Extra => ({
   date, kind: "strength", id: "C",
