@@ -1,4 +1,5 @@
 import type { Activity, Lap, Step, Wellness, Workout } from "../types";
+import type { Exercise, Extra } from "../extras";
 import { fmtPace } from "../dates";
 
 const RUNNING = { sportTypeId: 1, sportTypeKey: "running", displayOrder: 1 };
@@ -55,6 +56,38 @@ export function toGarminWorkout(w: Workout) {
     sportType: RUNNING,
     estimatedDurationInSecs: Math.round(w.km * avgPace),
     workoutSegments: [{ segmentOrder: 1, sportType: RUNNING, workoutSteps: steps.map(conv) }],
+  };
+}
+
+const STRENGTH = { sportTypeId: 5, sportTypeKey: "strength_training", displayOrder: 5 };
+
+/** Strength session as a Garmin workout: one lap-button step per exercise (name + dose in the step note), repeated per round. */
+export function toGarminStrength(x: Extra) {
+  let order = 0;
+  const step = (e: Exercise) => ({
+    type: "ExecutableStepDTO",
+    stepOrder: ++order,
+    stepType: STEP_TYPES.active,
+    description: `${e.name.en}: ${e.dose.en}`.slice(0, 120),
+    endCondition: LAP,
+    targetType: NO_TARGET,
+  });
+  let steps: any[];
+  if (x.rounds > 1) {
+    const groupOrder = ++order;
+    steps = [{
+      type: "RepeatGroupDTO", stepOrder: groupOrder, stepType: STEP_TYPES.repeat, numberOfIterations: x.rounds, smartRepeat: false,
+      endCondition: ITER, endConditionValue: x.rounds, workoutSteps: x.exercises.map(step),
+    }];
+  } else {
+    steps = x.exercises.map(step);
+  }
+  return {
+    workoutName: `MC ${x.date.slice(5)} ${x.title.en}`.slice(0, 60),
+    description: x.note?.en,
+    sportType: STRENGTH,
+    estimatedDurationInSecs: x.minutes * 60,
+    workoutSegments: [{ segmentOrder: 1, sportType: STRENGTH, workoutSteps: steps }],
   };
 }
 

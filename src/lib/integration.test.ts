@@ -139,6 +139,16 @@ d("integration (postgres)", () => {
     expect(isSameRun(base as any, { ...base, startLocal: "2026-11-01T17:30:00" } as any)).toBe(false);
   });
 
+  it("strength/mobility status roundtrip and strength pushed to Garmin", async () => {
+    await db.setExtraStatus("2026-11-03", "strength", "done");
+    await db.setExtraStatus("2026-11-03", "mobility", "skipped");
+    expect(await db.extraStatusesBetween("2026-11-03", "2026-11-03")).toEqual({ "2026-11-03:strength": "done", "2026-11-03:mobility": "skipped" });
+    await db.setExtraStatus("2026-11-03", "mobility", null);
+    expect(Object.keys(await db.extraStatusesBetween("2026-11-03", "2026-11-03"))).toEqual(["2026-11-03:strength"]);
+    const pushed = await db.extraPushesBetween("2026-11-04", "2026-11-10");
+    expect(Object.keys(pushed).sort()).toEqual(["2026-11-05:strength", "2026-11-10:strength"]);
+  });
+
   it("delete all data wipes everything", async () => {
     await db.deleteAllData();
     expect(await db.activityCount()).toEqual([]);

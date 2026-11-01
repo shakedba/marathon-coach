@@ -160,6 +160,30 @@ export async function deletePush(date: string) {
   await q("DELETE FROM garmin_pushes WHERE date=$1", [date]);
 }
 
+// ---------- strength / mobility ----------
+export async function extraStatusesBetween(from: string, to: string): Promise<Record<string, "done" | "skipped">> {
+  const r = await q("SELECT date, kind, status FROM extra_status WHERE date BETWEEN $1 AND $2", [from, to]);
+  return Object.fromEntries(r.map((x) => [`${d(x.date)}:${x.kind}`, x.status]));
+}
+export async function setExtraStatus(date: string, kind: string, status: "done" | "skipped" | null) {
+  if (status === null) await q("DELETE FROM extra_status WHERE date=$1 AND kind=$2", [date, kind]);
+  else await q("INSERT INTO extra_status(date,kind,status) VALUES($1,$2,$3) ON CONFLICT(date,kind) DO UPDATE SET status=EXCLUDED.status, updated_at=now()", [date, kind, status]);
+}
+export async function recentSkips(from: string, to: string): Promise<{ date: string; reason?: string }[]> {
+  const r = await q("SELECT date, reason FROM day_status WHERE status='skipped' AND date BETWEEN $1 AND $2", [from, to]);
+  return r.map((x) => ({ date: d(x.date), reason: x.reason ?? undefined }));
+}
+export async function extraPushesBetween(from: string, to: string): Promise<Record<string, { workoutId: number; hash: string }>> {
+  const r = await q("SELECT * FROM garmin_extra_pushes WHERE date BETWEEN $1 AND $2", [from, to]);
+  return Object.fromEntries(r.map((x) => [`${d(x.date)}:${x.kind}`, { workoutId: Number(x.workout_id), hash: x.plan_hash }]));
+}
+export async function setExtraPush(date: string, kind: string, workoutId: number, hash: string) {
+  await q("INSERT INTO garmin_extra_pushes(date,kind,workout_id,plan_hash) VALUES($1,$2,$3,$4) ON CONFLICT(date,kind) DO UPDATE SET workout_id=EXCLUDED.workout_id, plan_hash=EXCLUDED.plan_hash, pushed_at=now()", [date, kind, workoutId, hash]);
+}
+export async function deleteExtraPush(date: string, kind: string) {
+  await q("DELETE FROM garmin_extra_pushes WHERE date=$1 AND kind=$2", [date, kind]);
+}
+
 // ---------- locks ----------
 /** Atomic lease: succeeds if the lock is free or expired. */
 export async function tryLock(name: string, ttlMs: number): Promise<boolean> {
@@ -191,7 +215,7 @@ export async function recordLogin(ok: boolean) {
 // ---------- privacy ----------
 /** Deletes every stored record (tokens, activities, health data, plan changes). */
 export async function deleteAllData() {
-  for (const t of ["activities", "wellness", "overrides", "day_status", "proposals", "garmin_pushes", "locks", "kv"]) {
+  for (const t of ["activities", "wellness", "overrides", "day_status", "proposals", "garmin_pushes", "extra_status", "garmin_extra_pushes", "locks", "kv"]) {
     await q(`DELETE FROM ${t}`);
   }
 }
