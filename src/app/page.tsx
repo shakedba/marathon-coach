@@ -3,9 +3,11 @@ import { DayActions } from "@/components/DayActions";
 import { Proposals } from "@/components/Proposals";
 import { Setup } from "@/components/Setup";
 import { WorkoutCard } from "@/components/WorkoutCard";
+import { ExtraCard } from "@/components/ExtraCard";
+import { extrasFor, strengthCaution } from "@/lib/extras";
 import * as db from "@/lib/db";
 import { dbConfigured, loadWeek } from "@/lib/data";
-import { diffDays, fmtPace, todayLocal, weekday } from "@/lib/dates";
+import { addDays, diffDays, fmtPace, todayLocal, weekday } from "@/lib/dates";
 import { DOW, pick, tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 import { readinessFlag } from "@/lib/metrics";
@@ -19,12 +21,16 @@ export default async function Today() {
   const t = tr(lang);
   if (!dbConfigured()) return <Setup />;
   const today = todayLocal();
-  const [{ days }, proposals, wellness, lastSync] = await Promise.all([
+  const [{ days, overrides }, proposals, wellness, lastSync, extraStatus, skips] = await Promise.all([
     loadWeek(today, today),
     db.pendingProposals(),
     db.wellnessBetween(today, today),
     db.kvGet<{ at: string; errors: string[] }>("last_sync"),
+    db.extraStatusesBetween(today, today),
+    db.recentSkips(addDays(today, -3), today),
   ]);
+  const extras = extrasFor(today, overrides);
+  const caution = strengthCaution(skips, today);
   const day = days.find((d) => d.date === today)!;
   const unanswered = days.filter((d) => d.state === "missed" && !d.status);
   const flag = day.plan.type !== "rest" ? readinessFlag(wellness[0]) : null;
@@ -68,6 +74,10 @@ export default async function Today() {
           {day.status.feel ? ` · ${day.status.feel}/10` : ""}
         </p>
       )}
+
+      {extras.map((x) => (
+        <ExtraCard key={x.kind} x={x} lang={lang} status={extraStatus[`${today}:${x.kind}`]} caution={caution} />
+      ))}
 
       <form action={syncNow} className="spread" style={{ marginTop: 16 }}>
         <span className="muted">

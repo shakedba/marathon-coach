@@ -8,6 +8,7 @@ import { addDays, fmtPace, todayLocal, weekday, weekStart } from "@/lib/dates";
 import { DOW, pick, tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 import { weekKm } from "@/lib/rebalance";
+import { extrasWeek } from "@/lib/extras";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,10 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
   const today = todayLocal();
   const { w } = await searchParams;
   const ws = weekStart(w && /^\d{4}-\d{2}-\d{2}$/.test(w) ? w : today);
-  const [{ days, plan }, proposals] = await Promise.all([loadWeek(ws, today), db.pendingProposals()]);
+  const [{ days, plan, overrides }, proposals, extraStatus] = await Promise.all([
+    loadWeek(ws, today), db.pendingProposals(), db.extraStatusesBetween(ws, addDays(ws, 6)),
+  ]);
+  const extras = extrasWeek(ws, overrides);
   const actual = Math.round(days.reduce((s, d) => s + d.actualKm, 0) * 10) / 10;
 
   return (
@@ -40,6 +44,14 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
                 <td>
                   {d.plan.type === "rest" ? <span className="muted">{t("rest")}</span> : pick(lang, d.plan.title)}
                   {d.plan.pace && <div className="muted ltr">{fmtPace(d.plan.pace[0])}-{fmtPace(d.plan.pace[1])}{d.plan.hrCap ? ` · HR≤${d.plan.hrCap}` : ""}</div>}
+                  {extras[d.date].length > 0 && (
+                    <div className="muted">
+                      {extras[d.date].map((x) => {
+                        const st = extraStatus[`${d.date}:${x.kind}`];
+                        return <span key={x.kind} style={{ marginInlineEnd: 8 }}>{x.kind === "strength" ? "💪" : "🧘"} {x.kind === "strength" ? pick(lang, x.title) : t("mobility")}{st === "done" ? " ✓" : st === "skipped" ? " ✗" : ""}</span>;
+                      })}
+                    </div>
+                  )}
                 </td>
                 <td className="ltr">
                   {d.actualKm > 0 ? `${d.actualKm} km` : ""}

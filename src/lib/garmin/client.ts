@@ -1,42 +1,52 @@
 /**
- * Unofficial Garmin Connect client (TypeScript port of the auth flow used by the
- * open-source `garth` library). Not endorsed by Garmin; endpoints may change.
+ * Unofficial Garmin Connect client. Not endorsed by Garmin; endpoints may change.
  *
- * Flow: SSO login (+ optional MFA) -> service ticket -> OAuth1 token (long-lived, ~1y)
- *       -> OAuth2 bearer (short-lived, refreshed by re-exchanging OAuth1).
+ * Follows the login flow of the maintained `python-garminconnect` (0.3.20, Nov 2026),
+ * after Garmin retired the old OAuth1 flow that `garth` used (March 2026):
+ *   1. GET the iOS mobile sign-in page (sets SSO + Cloudflare cookies)
+ *   2. short pause, then POST credentials to /mobile/api/login with Origin + Referer
+ *   3. optional MFA: POST /mobile/api/mfa/verifyCode (portal endpoint as fallback)
+ *   4. exchange the CAS service ticket for a DI OAuth2 bearer token (diauth.garmin.com)
+ *   5. refresh with the DI refresh token
  */
-import crypto from "node:crypto";
 
 const DOMAIN = "garmin.com";
-const CLIENT_ID = "GCM_ANDROID_DARK";
-const SERVICE_URL = `https://mobile.integration.${DOMAIN}/gcm/android`;
-const CONSUMER_URL = "https://thegarth.s3.amazonaws.com/oauth_consumer.json";
-const OAUTH_UA = "com.garmin.android.apps.connectmobile";
-const API_UA = "GCM-iOS-5.22.1.4";
-const SSO_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
-const SSO_HEADERS: Record<string, string> = {
-  "User-Agent": SSO_UA,
-  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-  "Accept-Language": "en-US,en;q=0.9",
-  "Sec-Fetch-Mode": "navigate",
-  "Sec-Fetch-Dest": "document",
-};
+const SSO = `https://sso.${DOMAIN}`;
+const IOS_CLIENT_ID = "GCM_IOS_DARK";
+const IOS_SERVICE_URL = `https://mobile.integration.${DOMAIN}/gcm/ios`;
+const PORTAL_CLIENT_ID = "GarminConnect";
+const PORTAL_SERVICE_URL = `https://connect.${DOMAIN}/app`;
+const IOS_LOGIN_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
+const DI_TOKEN_URL = `https://diauth.${DOMAIN}/di-oauth2-service/oauth/token`;
+const DI_GRANT_TYPE = "https://connectapi.garmin.com/di-oauth2-service/oauth/grant/service_ticket";
+const DI_CLIENT_IDS = [
+  "GARMIN_CONNECT_MOBILE_ANDROID_DI_2025Q2",
+  "GARMIN_CONNECT_MOBILE_ANDROID_DI_2024Q4",
+  "GARMIN_CONNECT_MOBILE_ANDROID_DI",
+  "GARMIN_CONNECT_MOBILE_IOS_DI",
+];
+const BLOCKED = new Set([427, 429]);
 
-export interface OAuth1Token {
-  oauth_token: string;
-  oauth_token_secret: string;
-  mfa_token?: string;
+/** Headers the Garmin Connect Android app sends to the API tier. */
+export function nativeHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return {
+    "User-Agent": "GCM-Android-5.23",
+    "X-Garmin-User-Agent": "com.garmin.android.apps.connectmobile/5.23; ; Google/sdk_gphone64_arm64/google; Android/33; Dalvik/2.1.0",
+    "X-Garmin-Paired-App-Version": "10861",
+    "X-Garmin-Client-Platform": "Android",
+    "X-App-Ver": "10861",
+    "X-Lang": "en",
+    "X-GCExperience": "GC5",
+    "Accept-Language": "en-US,en;q=0.9",
+    ...extra,
+  };
 }
-export interface OAuth2Token {
-  access_token: string;
-  refresh_token: string;
-  expires_at: number;
-  refresh_token_expires_at: number;
-  [k: string]: unknown;
-}
+
 export interface GarminTokens {
-  oauth1: OAuth1Token;
-  oauth2: OAuth2Token;
+  access_token: string;
+  refresh_token?: string;
+  client_id: string;
+  expires_at: number; // unix seconds
 }
 export interface MfaState {
   cookies: Record<string, string>;
@@ -77,138 +87,155 @@ async function ssoFetch(jar: Jar, url: string, init: RequestInit = {}, hops = 5)
   return res;
 }
 
-// ---------------- OAuth1 ----------------
-let consumer: { consumer_key: string; consumer_secret: string } | null = null;
-async function getConsumer() {
-  if (!consumer && process.env.GARMIN_CONSUMER_KEY && process.env.GARMIN_CONSUMER_SECRET) {
-    consumer = { consumer_key: process.env.GARMIN_CONSUMER_KEY, consumer_secret: process.env.GARMIN_CONSUMER_SECRET };
-  }
-  if (!consumer) {
-    const r = await fetch(CONSUMER_URL);
-    if (!r.ok) throw new GarminError("Could not load Garmin OAuth consumer");
-    consumer = await r.json();
-  }
-  return consumer!;
-}
+// ---------------- helpers ----------------
+const qs = (o: Record<string, string>) => new URLSearchParams(o).toString();
+const IOS_PARAMS = { clientId: IOS_CLIENT_ID, locale: "en-US", service: IOS_SERVICE_URL };
+const SIGNIN_URL = `${SSO}/mobile/sso/en_US/sign-in?${qs({ clientId: IOS_CLIENT_ID, service: IOS_SERVICE_URL })}`;
+const POST_HEADERS: Record<string, string> = {
+  "User-Agent": IOS_LOGIN_UA,
+  Accept: "application/json, text/plain, */*",
+  "Accept-Language": "en-US,en;q=0.9",
+  "Content-Type": "application/json",
+  Origin: SSO,
+  Referer: SIGNIN_URL,
+};
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const enc = (s: string) =>
-  encodeURIComponent(s).replace(/[!'()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
-
-export function oauth1Header(
-  method: string,
-  url: string,
-  ck: { consumer_key: string; consumer_secret: string },
-  token?: { key: string; secret: string },
-  body: Record<string, string> = {},
-  nonce = crypto.randomBytes(16).toString("hex"),
-  timestamp = Math.floor(Date.now() / 1000).toString(),
-): string {
-  const u = new URL(url);
-  const oauth: Record<string, string> = {
-    oauth_consumer_key: ck.consumer_key,
-    oauth_nonce: nonce,
-    oauth_signature_method: "HMAC-SHA1",
-    oauth_timestamp: timestamp,
-    oauth_version: "1.0",
-  };
-  if (token) oauth.oauth_token = token.key;
-  const params: [string, string][] = [];
-  u.searchParams.forEach((v, k) => params.push([k, v]));
-  for (const [k, v] of Object.entries(body)) params.push([k, v]);
-  for (const [k, v] of Object.entries(oauth)) params.push([k, v]);
-  const norm = params
-    .map(([k, v]) => [enc(k), enc(v)])
-    .sort((a, b) => (a[0] === b[0] ? (a[1] < b[1] ? -1 : 1) : a[0] < b[0] ? -1 : 1))
-    .map(([k, v]) => `${k}=${v}`)
-    .join("&");
-  const baseUrl = `${u.protocol}//${u.host}${u.pathname}`;
-  const base = [method.toUpperCase(), enc(baseUrl), enc(norm)].join("&");
-  const key = `${enc(ck.consumer_secret)}&${enc(token?.secret ?? "")}`;
-  const sig = crypto.createHmac("sha1", key).update(base).digest("base64");
-  const all = { ...oauth, oauth_signature: sig };
-  return "OAuth " + Object.entries(all).map(([k, v]) => `${enc(k)}="${enc(v)}"`).join(", ");
-}
-
-async function getOAuth1(ticket: string): Promise<OAuth1Token> {
-  const ck = await getConsumer();
-  const url = `https://connectapi.${DOMAIN}/oauth-service/oauth/preauthorized?ticket=${encodeURIComponent(ticket)}&login-url=${encodeURIComponent(SERVICE_URL)}&accepts-mfa-tokens=true`;
-  const r = await fetch(url, { headers: { "User-Agent": OAUTH_UA, Authorization: oauth1Header("GET", url, ck) } });
-  if (!r.ok) throw new GarminError(`OAuth1 preauthorized failed (${r.status})`, r.status);
-  const q = new URLSearchParams(await r.text());
-  return { oauth_token: q.get("oauth_token")!, oauth_token_secret: q.get("oauth_token_secret")!, mfa_token: q.get("mfa_token") ?? undefined };
-}
-
-export async function exchange(oauth1: OAuth1Token, login = false): Promise<OAuth2Token> {
-  const ck = await getConsumer();
-  const url = `https://connectapi.${DOMAIN}/oauth-service/oauth/exchange/user/2.0`;
-  const body: Record<string, string> = {};
-  if (login) body.audience = "GARMIN_CONNECT_MOBILE_ANDROID_DI";
-  if (oauth1.mfa_token) body.mfa_token = oauth1.mfa_token;
-  const r = await fetch(url, {
-    method: "POST",
-    headers: {
-      "User-Agent": OAUTH_UA,
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: oauth1Header("POST", url, ck, { key: oauth1.oauth_token, secret: oauth1.oauth_token_secret }, body),
-    },
-    body: new URLSearchParams(body).toString(),
-  });
-  if (!r.ok) throw new GarminError(`OAuth2 exchange failed (${r.status})`, r.status);
-  const tok = await r.json();
-  const now = Math.floor(Date.now() / 1000);
-  return { ...tok, expires_at: now + tok.expires_in, refresh_token_expires_at: now + tok.refresh_token_expires_in };
-}
-
-// ---------------- SSO login ----------------
-const loginParams = () => new URLSearchParams({ clientId: CLIENT_ID, locale: "en-US", service: SERVICE_URL }).toString();
-
-async function complete(jar: Jar, ticket: string): Promise<GarminTokens> {
+export function jwtExp(token: string): number | null {
   try {
-    await ssoFetch(jar, `https://sso.${DOMAIN}/portal/sso/embed`, { headers: { ...SSO_HEADERS, "Sec-Fetch-Site": "same-origin" } });
+    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8"));
+    return typeof payload.exp === "number" ? payload.exp : null;
   } catch {
-    /* best effort */
+    return null;
   }
-  const oauth1 = await getOAuth1(ticket);
-  const oauth2 = await exchange(oauth1, true);
-  return { oauth1, oauth2 };
+}
+function jwtClientId(token: string): string | null {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8"));
+    return payload.client_id ? String(payload.client_id) : null;
+  } catch {
+    return null;
+  }
 }
 
-async function ssoJson(res: Response) {
+async function readSso(res: Response, what: string) {
+  if (BLOCKED.has(res.status)) throw new GarminError(`${what}: Garmin rate-limited or blocked this server (HTTP ${res.status}). Wait 15 minutes and try once.`, res.status);
+  if (res.status === 403) throw new GarminError(`${what}: blocked by Garmin's bot protection (HTTP 403).`, 403);
   const text = await res.text();
   try {
     return JSON.parse(text);
   } catch {
-    throw new GarminError(`Garmin SSO returned a non-JSON response (${res.status}). It may be blocking this server.`, res.status);
+    throw new GarminError(`${what}: Garmin returned a non-JSON response (HTTP ${res.status}); it may be blocking this server.`, res.status);
   }
 }
 
-export async function login(email: string, password: string): Promise<{ status: "ok"; tokens: GarminTokens } | { status: "mfa"; state: MfaState }> {
-  const jar = new Jar();
-  await ssoFetch(jar, `https://sso.${DOMAIN}/mobile/sso/en/sign-in?clientId=${CLIENT_ID}`, { headers: { ...SSO_HEADERS, "Sec-Fetch-Site": "none" } });
-  const res = await ssoFetch(jar, `https://sso.${DOMAIN}/mobile/api/login?${loginParams()}`, {
+// ---------------- DI OAuth2 ----------------
+async function diTokenPost(clientId: string, accept: string, data: Record<string, string>) {
+  return fetch(DI_TOKEN_URL, {
     method: "POST",
-    headers: { ...SSO_HEADERS, "Content-Type": "application/json" },
-    body: JSON.stringify({ username: email, password, rememberMe: false, captchaToken: "" }),
+    headers: nativeHeaders({
+      Authorization: "Basic " + Buffer.from(`${clientId}:`).toString("base64"),
+      Accept: accept,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Cache-Control": "no-cache",
+    }),
+    body: new URLSearchParams(data).toString(),
   });
-  const j = await ssoJson(res);
-  const type = j?.responseStatus?.type;
-  if (type === "SUCCESSFUL") return { status: "ok", tokens: await complete(jar, j.serviceTicketId) };
-  if (type === "MFA_REQUIRED") {
-    return { status: "mfa", state: { cookies: jar.cookies, mfaMethod: j?.customerMfaInfo?.mfaLastMethodUsed || "email" } };
+}
+
+function toTokens(data: any, clientId: string): GarminTokens {
+  const access = String(data.access_token);
+  const exp = jwtExp(access) ?? Math.floor(Date.now() / 1000) + Number(data.expires_in ?? 3600);
+  return { access_token: access, refresh_token: data.refresh_token, client_id: jwtClientId(access) ?? clientId, expires_at: exp };
+}
+
+export async function exchangeTicket(ticket: string, serviceUrl = IOS_SERVICE_URL): Promise<GarminTokens> {
+  for (const clientId of DI_CLIENT_IDS) {
+    const r = await diTokenPost(clientId, "application/json,text/html;q=0.9,*/*;q=0.8", {
+      client_id: clientId,
+      service_ticket: ticket,
+      grant_type: DI_GRANT_TYPE,
+      service_url: serviceUrl,
+    });
+    if (r.status === 429) throw new GarminError("Garmin token exchange rate-limited; try again in 15 minutes.", 429);
+    if (!r.ok) continue;
+    try {
+      const data = await r.json();
+      if (data?.access_token) return toTokens(data, clientId);
+    } catch {
+      /* try next client id */
+    }
   }
-  throw new GarminError(`Garmin login failed: ${type ?? "unknown"} ${j?.responseStatus?.message ?? ""}`.trim());
+  throw new GarminError("Garmin token exchange failed for all client IDs.");
+}
+
+export async function refreshTokens(t: GarminTokens): Promise<GarminTokens> {
+  if (!t.refresh_token) throw new GarminError("Garmin session expired - reconnect Garmin in Settings", 401);
+  const r = await diTokenPost(t.client_id, "application/json", { grant_type: "refresh_token", client_id: t.client_id, refresh_token: t.refresh_token });
+  if (!r.ok) throw new GarminError(`Garmin session expired - reconnect Garmin in Settings (refresh ${r.status})`, 401);
+  const data = await r.json();
+  const next = toTokens(data, t.client_id);
+  return { ...next, refresh_token: next.refresh_token ?? t.refresh_token };
+}
+
+// ---------------- SSO login ----------------
+export type LoginResult = { status: "ok"; tokens: GarminTokens } | { status: "mfa"; state: MfaState };
+
+async function postCredentials(jar: Jar, email: string, password: string) {
+  const res = await ssoFetch(jar, `${SSO}/mobile/api/login?${qs(IOS_PARAMS)}`, {
+    method: "POST",
+    headers: POST_HEADERS,
+    body: JSON.stringify({ username: email, password, rememberMe: true, captchaToken: "" }),
+  });
+  return readSso(res, "Garmin login");
+}
+
+export async function login(email: string, password: string, opts: { delayMs?: number } = {}): Promise<LoginResult> {
+  const jar = new Jar();
+  const page = await ssoFetch(jar, SIGNIN_URL, {
+    headers: { "User-Agent": IOS_LOGIN_UA, Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "en-US,en;q=0.9" },
+  });
+  if (BLOCKED.has(page.status)) throw new GarminError(`Garmin sign-in page: rate-limited or blocked (HTTP ${page.status}). Wait 15 minutes and try once.`, page.status);
+  if (page.status === 403) throw new GarminError("Garmin sign-in page: blocked by Garmin's bot protection (HTTP 403).", 403);
+  // Cloudflare flags an instant GET->POST as bot-like; the real app pauses.
+  await sleep(opts.delayMs ?? 2000 + Math.random() * 3000);
+
+  let j = await postCredentials(jar, email, password);
+  let type = j?.responseStatus?.type;
+  // Password managers sometimes copy a trailing space/newline; browsers forgive it, this endpoint doesn't.
+  if (type === "INVALID_USERNAME_PASSWORD" && password !== password.trim()) {
+    j = await postCredentials(jar, email, password.trim());
+    type = j?.responseStatus?.type;
+  }
+  if (type === "SUCCESSFUL") return { status: "ok", tokens: await exchangeTicket(j.serviceTicketId) };
+  if (type === "MFA_REQUIRED") return { status: "mfa", state: { cookies: jar.cookies, mfaMethod: j?.customerMfaInfo?.mfaLastMethodUsed || "email" } };
+  if (type === "INVALID_USERNAME_PASSWORD") throw new GarminError("Garmin rejected the email or password (INVALID_USERNAME_PASSWORD).", 401);
+  if (type === "CAPTCHA_REQUIRED") throw new GarminError("Garmin asked for a CAPTCHA (bot check). Wait 15 minutes and try once.");
+  if (j?.error?.["status-code"] === "429") throw new GarminError("Garmin rate-limited this server. Wait 15 minutes and try once.", 429);
+  throw new GarminError(`Garmin login failed: ${type ?? "unknown response"}`);
 }
 
 export async function verifyMfa(state: MfaState, code: string): Promise<GarminTokens> {
   const jar = new Jar(state.cookies);
-  const res = await ssoFetch(jar, `https://sso.${DOMAIN}/mobile/api/mfa/verifyCode?${loginParams()}`, {
-    method: "POST",
-    headers: { ...SSO_HEADERS, "Content-Type": "application/json" },
-    body: JSON.stringify({ mfaMethod: state.mfaMethod, mfaVerificationCode: code, rememberMyBrowser: false, reconsentList: [], mfaSetup: false }),
-  });
-  const j = await ssoJson(res);
-  if (j?.responseStatus?.type !== "SUCCESSFUL") throw new GarminError(`MFA failed: ${j?.responseStatus?.type ?? "unknown"}`);
-  return complete(jar, j.serviceTicketId);
+  const body = JSON.stringify({ mfaMethod: state.mfaMethod, mfaVerificationCode: code, rememberMyBrowser: true, reconsentList: [], mfaSetup: false });
+  const endpoints: [string, string][] = [
+    [`${SSO}/mobile/api/mfa/verifyCode?${qs(IOS_PARAMS)}`, IOS_SERVICE_URL],
+    [`${SSO}/portal/api/mfa/verifyCode?${qs({ clientId: PORTAL_CLIENT_ID, locale: "en-US", service: PORTAL_SERVICE_URL })}`, PORTAL_SERVICE_URL],
+  ];
+  const failures: string[] = [];
+  for (const [url, service] of endpoints) {
+    let j: any;
+    try {
+      j = await readSso(await ssoFetch(jar, url, { method: "POST", headers: POST_HEADERS, body }), "Garmin verification");
+    } catch (e) {
+      failures.push((e as Error).message);
+      continue;
+    }
+    if (j?.responseStatus?.type === "SUCCESSFUL") return exchangeTicket(j.serviceTicketId, service);
+    failures.push(j?.responseStatus?.type ?? "unknown");
+    if (j?.responseStatus?.type && j.responseStatus.type !== "SUCCESSFUL") break; // a real answer (e.g. wrong code): don't retry
+  }
+  throw new GarminError(`Verification failed: ${failures.join("; ")}`);
 }
 
 // ---------------- API ----------------
@@ -218,15 +245,15 @@ export class Garmin {
   constructor(public tokens: GarminTokens) {}
 
   private async bearer() {
-    if (this.tokens.oauth2.expires_at < Date.now() / 1000 + 60) {
-      this.tokens = { ...this.tokens, oauth2: await exchange(this.tokens.oauth1) };
+    if (this.tokens.expires_at < Date.now() / 1000 + 120) {
+      this.tokens = await refreshTokens(this.tokens);
       this.refreshed = true;
     }
-    return `Bearer ${this.tokens.oauth2.access_token}`;
+    return `Bearer ${this.tokens.access_token}`;
   }
 
   async api<T = any>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
-    const headers: Record<string, string> = { "User-Agent": API_UA, Authorization: await this.bearer() };
+    const headers = nativeHeaders({ Authorization: await this.bearer(), Accept: "application/json" });
     if (init.body !== undefined) headers["Content-Type"] = "application/json";
     const r = await fetch(`https://connectapi.${DOMAIN}${path}`, {
       method: init.method ?? "GET",

@@ -73,3 +73,13 @@ export async function deleteEverything(form: FormData) {
   await db.deleteAllData();
   revalidatePath("/", "layout");
 }
+
+/** Strength / mobility: done, skipped, or cleared. */
+export async function markExtra(form: FormData) {
+  const date = dateParam(form);
+  const kind = String(form.get("kind"));
+  if (kind !== "strength" && kind !== "mobility") throw new Error("bad kind");
+  const v = String(form.get("status"));
+  await db.setExtraStatus(date, kind, v === "done" || v === "skipped" ? v : null);
+  revalidatePath("/", "layout");
+}

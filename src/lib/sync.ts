@@ -3,7 +3,8 @@ import { decrypt, encrypt } from "./crypto";
 import * as db from "./db";
 import { addDays, todayLocal } from "./dates";
 import { Garmin, type GarminTokens } from "./garmin/client";
-import { mapActivity, mapLaps, mapWellness, toGarminWorkout } from "./garmin/mappers";
+import { mapActivity, mapLaps, mapWellness, toGarminStrength, toGarminWorkout } from "./garmin/mappers";
+import { strengthFor } from "./extras";
 import { planFor } from "./plan";
 import { mapStrava, Strava, type StravaTokens } from "./strava/client";
 import type { Activity } from "./types";
@@ -129,6 +130,34 @@ export async function pushWorkouts(g: Garmin, days = 7) {
     await db.setPush(date, created.workoutId, h);
     if (prev) await g.deleteWorkout(prev.workoutId);
     out.push({ date, action: prev ? "updated" : "created" });
+  }
+  // Strength sessions go to the calendar too (mobility stays in the app).
+  const extraPushed = await db.extraPushesBetween(today, end);
+  for (let i = 0; i < days; i++) {
+    const date = addDays(today, i);
+    const x = strengthFor(date);
+    const prev = extraPushed[`${date}:strength`];
+    if (!x) {
+      if (prev) {
+        await g.deleteWorkout(prev.workoutId);
+        await db.deleteExtraPush(date, "strength");
+        out.push({ date, action: "strength removed" });
+      }
+      continue;
+    }
+    const gw = toGarminStrength(x);
+    const h = hash(gw);
+    if (prev?.hash === h) continue;
+    const created = await g.createWorkout(gw);
+    try {
+      await g.scheduleWorkout(created.workoutId, date);
+    } catch (e) {
+      await g.deleteWorkout(created.workoutId);
+      throw e;
+    }
+    await db.setExtraPush(date, "strength", created.workoutId, h);
+    if (prev) await g.deleteWorkout(prev.workoutId);
+    out.push({ date, action: prev ? "strength updated" : "strength created" });
   }
   return out;
 }

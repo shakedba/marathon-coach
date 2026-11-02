@@ -71,4 +71,21 @@ CREATE TABLE IF NOT EXISTS garmin_pushes (
   plan_hash text NOT NULL,
   pushed_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS extra_status (
+  date date NOT NULL,
+  kind text NOT NULL,                  -- strength | mobility
+  status text NOT NULL,                -- done | skipped
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (date, kind)
+);
+
+CREATE TABLE IF NOT EXISTS garmin_extra_pushes (
+  date date NOT NULL,
+  kind text NOT NULL,
+  workout_id bigint NOT NULL,
+  plan_hash text NOT NULL,
+  pushed_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (date, kind)
+);
 `;

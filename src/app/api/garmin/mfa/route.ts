@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { decrypt } from "@/lib/crypto";
 import * as db from "@/lib/db";
 import { verifyMfa, type MfaState } from "@/lib/garmin/client";
-import { saveGarminTokens, syncAll } from "@/lib/sync";
+import { saveGarminTokens } from "@/lib/sync";
 
 export const maxDuration = 60;
 
@@ -18,7 +18,6 @@ export async function POST(req: Request) {
     const tokens = await verifyMfa(decrypt<MfaState>(pending.blob), String(code).trim());
     await db.kvDel("garmin_mfa");
     await saveGarminTokens(tokens);
-    await syncAll({ push: true }).catch(() => null);
     return NextResponse.json({ status: "ok" });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 502 });
