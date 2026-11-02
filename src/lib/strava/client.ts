@@ -7,11 +7,15 @@ export interface StravaTokens {
 }
 
 const env = () => {
-  const id = process.env.STRAVA_CLIENT_ID;
-  const secret = process.env.STRAVA_CLIENT_SECRET;
+  // Trim: values pasted into the dashboard often carry a trailing newline/space.
+  const id = process.env.STRAVA_CLIENT_ID?.trim();
+  const secret = process.env.STRAVA_CLIENT_SECRET?.trim();
   if (!id || !secret) throw new Error("STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET not configured");
   return { id, secret };
 };
+
+/** Client ID in use (not secret: it appears in every Strava authorize link). */
+export const stravaClientId = () => process.env.STRAVA_CLIENT_ID?.trim() || null;
 
 export function authorizeUrl(redirectUri: string, state: string) {
   const p = new URLSearchParams({ client_id: env().id, redirect_uri: redirectUri, response_type: "code", approval_prompt: "auto", scope: "activity:read_all", state });
