@@ -68,3 +68,12 @@ a.back { display: inline-block; color: var(--accent); text-decoration: none; fon
 .menu .tx b { display: block; }
 .menu .chev { color: var(--muted); }
 [dir="rtl"] .menu .chev { transform: scaleX(-1); }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; }
+.stats div { display: flex; flex-direction: column; }
+.stats b { font-size: 1.15rem; }
+.stats span { color: var(--muted); font-size: .75rem; }
+table.laps td, table.laps th { padding: 4px 6px; text-align: start; }
+.lap-ok { color: var(--good); } .lap-fast { color: var(--warn); } .lap-slow { color: var(--bad); }
+.good-text { color: var(--good); font-size: .9rem; } .warn-text { color: var(--warn); font-size: .9rem; }
+a.dayrow { color: inherit; text-decoration: none; display: block; }
+.day-link { display: inline-block; margin-top: 4px; color: var(--accent); text-decoration: none; font-size: .9rem; }
