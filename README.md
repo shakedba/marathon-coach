@@ -21,7 +21,7 @@ Hebrew + English, phone-first (installable to the home screen).
 - Sync is guarded by a DB lock (cron / button / login can't double-push workouts) and finishes within the 60 s function limit; history imports resume where they stopped.
 
 ## Unofficial Garmin access: know the trade-off
-Garmin has no public API for personal apps. This uses the same login flow as the open-source `garth` library.
+Garmin has no public API for personal apps. This uses the same login flow as the maintained open-source `python-garminconnect` library (0.3.20): mobile SSO login, then a DI OAuth2 token. (The older OAuth1 flow used by `garth` stopped working in March 2026.)
 It can break when Garmin changes things, and it's against Garmin's terms of use. If Garmin's login blocks the server, runs keep arriving through Strava. To revoke access at any time, change your Garmin password.
 
 ## Deploy (Vercel + Neon)

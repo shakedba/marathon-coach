@@ -13,7 +13,12 @@ export function GarminConnect({ labels }: { labels: L }) {
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { setErr(j.error ?? `Error ${r.status}`); setStage(prev); return; }
     if (j.status === "mfa") setStage("mfa");
-    else { setStage("ok"); location.reload(); }
+    else {
+      // First sync in its own request (own 60 s budget): history, recovery data, workouts to the watch.
+      await fetch("/api/sync", { method: "POST" }).catch(() => null);
+      setStage("ok");
+      location.reload();
+    }
   }
   if (stage === "ok") return <p>✓</p>;
   return (
