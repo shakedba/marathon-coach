@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { syncNow } from "./actions";
 import { DayActions } from "@/components/DayActions";
 import { Proposals } from "@/components/Proposals";
@@ -55,6 +56,7 @@ export default async function Today() {
       ))}
 
       <WorkoutCard w={day.plan} lang={lang} />
+      <Link className="day-link" href={`/day/${today}`}>{lang === "he" ? "פרטי היום ‹" : "Day details ›"}</Link>
 
       {day.activities.map((a) => (
         <div className="card" key={a.id}>

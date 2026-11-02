@@ -42,9 +42,9 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
           <tbody>
             {days.map((d) => (
               <tr key={d.date} style={d.date === today ? { background: "var(--soft)" } : undefined}>
-                <td>{DOW[lang][weekday(d.date)]}<div className="muted ltr">{d.date.slice(8)}/{d.date.slice(5, 7)}</div></td>
+                <td><Link className="dayrow" href={`/day/${d.date}`}>{DOW[lang][weekday(d.date)]}<div className="muted ltr">{d.date.slice(8)}/{d.date.slice(5, 7)}</div></Link></td>
                 <td>
-                  {d.plan.type === "rest" ? <span className="muted">{t("rest")}</span> : pick(lang, d.plan.title)}
+                  <Link className="dayrow" href={`/day/${d.date}`}>{d.plan.type === "rest" ? <span className="muted">{t("rest")}</span> : <u style={{ textDecorationColor: "var(--line)" }}>{pick(lang, d.plan.title)}</u>}</Link>
                   {d.plan.pace && <div className="muted ltr">{fmtPace(d.plan.pace[0])}-{fmtPace(d.plan.pace[1])}{d.plan.hrCap ? ` · HR≤${d.plan.hrCap}` : ""}</div>}
                   {extras[d.date].length > 0 && (
                     <div className="muted">
@@ -71,7 +71,7 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
           <DayActions date={d.date} lang={lang} ask />
         </div>
       ))}
-      <p className="swipe-hint">↔ {t("fb_swipe")}</p>
+      <p className="swipe-hint">↔ {t("fb_swipe")} · {lang === "he" ? "הקש על יום לפרטים" : "Tap a day for details"}</p>
       </SwipeNav>
     </>
   );

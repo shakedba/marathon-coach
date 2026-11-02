@@ -14,7 +14,10 @@ function TabIcon({ icon }: { icon: string }) {
 }
 
 const isOn = (path: string, href: string) =>
-  href === "/" ? path === "/" : path === href || path.startsWith(href + "/") || (href === "/more" && MORE_PAGES.some((p) => path === p || path.startsWith(p + "/")));
+  href === "/" ? path === "/" :
+  path === href || path.startsWith(href + "/") ||
+  (href === "/week" && path.startsWith("/day/")) ||
+  (href === "/more" && MORE_PAGES.some((p) => path === p || path.startsWith(p + "/")));
 
 export function Tabs({ labels }: { labels: Record<string, string> }) {
   const path = usePathname();
