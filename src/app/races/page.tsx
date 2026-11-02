@@ -11,6 +11,7 @@ export default async function RacesPage() {
   return (
     <>
       <h1>{t("races")}</h1>
+      <p><a className="btn" href="/exercises">💪🧘 {he ? "ספריית תרגילי כוח וגמישות" : "Strength & mobility exercise library"}</a></p>
       {RACES.map((r) => (
         <div className="card" key={r.id}>
           <div className="spread">

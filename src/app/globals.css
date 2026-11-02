@@ -49,3 +49,13 @@ button[aria-busy="true"] { opacity: 1; }
 .loading { display: flex; align-items: center; gap: 10px; color: var(--muted); padding: 40px 0; justify-content: center; }
 .swipe-hint { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 6px; }
 @media (prefers-reduced-motion: reduce) { .spinner, .toast { animation: none; } button:active { transform: none; } }
+
+/* ---- exercise how-to ---- */
+.exlist { margin-top: 6px; }
+details.ex { border-bottom: 1px solid var(--line); }
+details.ex > summary { display: flex; justify-content: space-between; gap: 10px; padding: 9px 2px; cursor: pointer; list-style: none; }
+details.ex > summary::-webkit-details-marker { display: none; }
+details.ex > summary::after { content: "ⓘ"; color: var(--accent); margin-inline-start: 6px; }
+details.ex[open] > summary::after { content: "▴"; }
+.howto { padding: 4px 2px 12px; }
+.exgrid { display: grid; gap: 10px; }
