@@ -59,3 +59,12 @@ details.ex > summary::after { content: "ⓘ"; color: var(--accent); margin-inlin
 details.ex[open] > summary::after { content: "▴"; }
 .howto { padding: 4px 2px 12px; }
 .exgrid { display: grid; gap: 10px; }
+a.back { display: inline-block; color: var(--accent); text-decoration: none; font-size: .9rem; margin: 2px 0 2px; }
+.menu { list-style: none; padding: 0; margin: 0; }
+.menu li + li { border-top: 1px solid var(--line); }
+.menu a { display: flex; align-items: center; gap: 12px; padding: 14px 4px; color: inherit; text-decoration: none; }
+.menu .ic { font-size: 1.4rem; width: 32px; text-align: center; }
+.menu .tx { flex: 1; }
+.menu .tx b { display: block; }
+.menu .chev { color: var(--muted); }
+[dir="rtl"] .menu .chev { transform: scaleX(-1); }
