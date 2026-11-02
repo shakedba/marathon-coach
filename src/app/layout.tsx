@@ -1,7 +1,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { getLang } from "@/lib/lang";
-import { Tabs } from "@/components/Tabs";
+import { BackToMore, Tabs } from "@/components/Tabs";
 import { tr } from "@/lib/i18n";
 import { ToastProvider } from "@/components/Toast";
 
@@ -11,12 +11,12 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, them
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const lang = await getLang();
   const t = tr(lang);
-  const labels = { "/": t("today"), "/week": t("week"), "/log": t("log"), "/progress": t("progress"), "/races": t("races"), "/settings": t("settings") };
+  const labels = { "/": t("today"), "/week": t("plan"), "/progress": t("progress"), "/more": t("more") };
   return (
     <html lang={lang} dir={lang === "he" ? "rtl" : "ltr"}>
       <body>
         <ToastProvider>
-          <main>{children}</main>
+          <main><BackToMore label={lang === "he" ? "› " + t("more") : "‹ " + t("more")} />{children}</main>
           <Tabs labels={labels} />
         </ToastProvider>
       </body>
