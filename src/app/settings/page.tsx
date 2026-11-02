@@ -5,6 +5,9 @@ import * as db from "@/lib/db";
 import { dbConfigured } from "@/lib/data";
 import { tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
+import { headers } from "next/headers";
+import { appOrigin } from "@/lib/origin";
+import { stravaClientId } from "@/lib/strava/client";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -20,6 +23,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     </form>
   );
   if (!dbConfigured()) return (<><h1>{t("settings")}</h1>{langForm}<Setup /></>);
+  const origin = appOrigin(await headers());
   const [garmin, strava, gh, sh, counts, profile] = await Promise.all([
     db.kvGet<string>("garmin_tokens"), db.kvGet<string>("strava_tokens"),
     db.kvGet<{ start: number; done: boolean; wellnessBackTo?: string }>("garmin_history"), db.kvGet<{ page: number; done: boolean }>("strava_history"),
@@ -47,6 +51,21 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       <div className="card">
         <div className="spread"><h2 style={{ margin: 0 }}>Strava</h2><span className={`tag ${strava ? "done" : "missed"}`}>{strava ? t("connected") : t("notConnected")}</span></div>
         {sp.strava === "error" && <p style={{ color: "var(--bad)" }}>Strava connection failed.</p>}
+        {!strava && (
+          <details open={sp.strava === "error"} style={{ margin: "8px 0" }}>
+            <summary className="muted">{lang === "he" ? "בדיקת הגדרות Strava" : "Check Strava settings"}</summary>
+            <table className="ltr" style={{ fontSize: ".85rem" }}>
+              <tbody>
+                <tr><td>Client ID</td><td><b>{stravaClientId() ?? "— not set —"}</b></td></tr>
+                <tr><td>Callback domain</td><td><b>{origin.replace(/^https?:\/\//, "")}</b></td></tr>
+                <tr><td>Redirect URI</td><td style={{ wordBreak: "break-all" }}>{origin}/api/strava/callback</td></tr>
+              </tbody>
+            </table>
+            <p className="muted">{lang === "he"
+              ? "ב-strava.com/settings/api: ה-Client ID חייב להיות זהה, וה-Authorization Callback Domain חייב להיות בדיוק השורה השנייה."
+              : "On strava.com/settings/api the Client ID must match, and Authorization Callback Domain must be exactly the second row."}</p>
+          </details>
+        )}
         {strava ? <p className="muted">{sh?.done ? `${t("history")} ✓` : `${t("history")}: page ${sh?.page ?? 1}…`}</p> : <a className="btn primary" href="/api/strava/connect">{t("connectStrava")}</a>}
       </div>
 
