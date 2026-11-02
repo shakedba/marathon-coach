@@ -3,6 +3,7 @@ import { DayActions } from "@/components/DayActions";
 import { Proposals } from "@/components/Proposals";
 import { Setup } from "@/components/Setup";
 import { WorkoutCard } from "@/components/WorkoutCard";
+import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { ExtraCard } from "@/components/ExtraCard";
 import { extrasFor, strengthCaution } from "@/lib/extras";
 import * as db from "@/lib/db";
@@ -79,13 +80,13 @@ export default async function Today() {
         <ExtraCard key={x.kind} x={x} lang={lang} status={extraStatus[`${today}:${x.kind}`]} caution={caution} />
       ))}
 
-      <form action={syncNow} className="spread" style={{ marginTop: 16 }}>
+      <ActionForm action={syncNow} success={t("fb_synced")} error={t("fb_failed")} className="spread" style={{ marginTop: 16 }}>
         <span className="muted">
           {t("lastSync")}: {lastSync ? new Date(lastSync.at).toLocaleString(lang === "he" ? "he-IL" : "en-GB", { timeZone: "Asia/Jerusalem" }) : "—"}
           {lastSync?.errors?.length ? <span style={{ color: "var(--bad)" }}> · {lastSync.errors.join("; ")}</span> : null}
         </span>
-        <button>{t("syncNow")}</button>
-      </form>
+        <SubmitButton pendingLabel={t("fb_syncing")}>{t("syncNow")}</SubmitButton>
+      </ActionForm>
     </>
   );
 }

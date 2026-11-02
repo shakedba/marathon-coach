@@ -1,5 +1,6 @@
 import { decideProposal } from "@/app/actions";
 import { pick, tr } from "@/lib/i18n";
+import { ActionForm, SubmitButton } from "./ActionForm";
 import type { Lang, Proposal } from "@/lib/types";
 
 export function Proposals({ items, lang }: { items: { id: number; proposal: Proposal }[]; lang: Lang }) {
@@ -23,17 +24,17 @@ export function Proposals({ items, lang }: { items: { id: number; proposal: Prop
               </tbody>
             </table>
           )}
-          <form action={decideProposal} className="row" style={{ marginTop: 10 }}>
+          <ActionForm action={decideProposal} success={{ accept: t("fb_accepted"), reject: t("fb_rejected") }} error={t("fb_failed")} className="row" style={{ marginTop: 10 }}>
             <input type="hidden" name="id" value={id} />
             {proposal.changes.length > 0 ? (
               <>
-                <button className="primary" name="decision" value="accept">{t("accept")}</button>
-                <button name="decision" value="reject">{t("reject")}</button>
+                <SubmitButton primary name="decision" value="accept">{t("accept")}</SubmitButton>
+                <SubmitButton name="decision" value="reject">{t("reject")}</SubmitButton>
               </>
             ) : (
-              <button name="decision" value="accept">OK</button>
+              <SubmitButton name="decision" value="accept">OK</SubmitButton>
             )}
-          </form>
+          </ActionForm>
         </div>
       ))}
     </>

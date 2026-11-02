@@ -1,5 +1,8 @@
 import { deleteEverything, setLang, syncNow } from "../actions";
 import { GarminConnect } from "@/components/GarminConnect";
+import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { StravaConnectLink } from "@/components/StravaConnectLink";
+import { PostButton } from "@/components/PostButton";
 import { Setup } from "@/components/Setup";
 import * as db from "@/lib/db";
 import { dbConfigured } from "@/lib/data";
@@ -17,10 +20,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const t = tr(lang);
   const sp = await searchParams;
   const langForm = (
-    <form action={setLang} className="row">
-      <button name="lang" value="he" className={lang === "he" ? "primary" : ""}>עברית</button>
-      <button name="lang" value="en" className={lang === "en" ? "primary" : ""}>English</button>
-    </form>
+    <ActionForm action={setLang} success={{ he: "השפה שונתה", en: "Language changed" }} error={t("fb_failed")} className="row">
+      <SubmitButton name="lang" value="he" primary={lang === "he"}>עברית</SubmitButton>
+      <SubmitButton name="lang" value="en" primary={lang === "en"}>English</SubmitButton>
+    </ActionForm>
   );
   if (!dbConfigured()) return (<><h1>{t("settings")}</h1>{langForm}<Setup /></>);
   const origin = appOrigin(await headers());
@@ -40,10 +43,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <>
             <p className="muted">{profile?.displayName ?? ""} · {gh?.done ? `${t("history")} ✓` : `${t("history")}: ${gh?.start ?? 0}…`} {gh?.wellnessBackTo ? `· ${t("recovery")} ${t("since")} ${gh.wellnessBackTo}` : ""}</p>
             <p className="muted">{t("pushNote")}</p>
-            <form action="/api/garmin/disconnect" method="post"><button>Disconnect</button></form>
+            <PostButton action="/api/garmin/disconnect" label={lang === "he" ? "נתק Garmin" : "Disconnect Garmin"} pending={lang === "he" ? "מנתק…" : "Disconnecting…"} confirm={lang === "he" ? "לנתק את Garmin? הנתונים שכבר יובאו יישארו." : "Disconnect Garmin? Data already imported stays."} />
           </>
         ) : (
-          <GarminConnect labels={{ email: t("email"), password: t("password"), mfaCode: t("mfaCode"), connect: t("connectGarmin"), pwNote: t("pwNote"), typeNote: t("typeNote") }} />
+          <GarminConnect labels={{ email: t("email"), password: t("password"), mfaCode: t("mfaCode"), connect: t("connectGarmin"), pwNote: t("pwNote"), typeNote: t("typeNote"), connecting: t("fb_connecting"), firstSync: t("fb_firstSync"), connected: t("connected"), failed: t("fb_failed") }} />
         )}
         <p className="muted">{t("unofficial")}</p>
       </div>
@@ -66,12 +69,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               : "On strava.com/settings/api the Client ID must match, and Authorization Callback Domain must be exactly the second row."}</p>
           </details>
         )}
-        {strava ? <p className="muted">{sh?.done ? `${t("history")} ✓` : `${t("history")}: page ${sh?.page ?? 1}…`}</p> : <a className="btn primary" href="/api/strava/connect">{t("connectStrava")}</a>}
+        {strava ? <p className="muted">{sh?.done ? `${t("history")} ✓` : `${t("history")}: page ${sh?.page ?? 1}…`}</p> : <StravaConnectLink label={t("connectStrava")} pending={t("fb_connecting")} />}
       </div>
 
       <div className="card">
         <p className="muted">{counts.map((c) => `${c.source}: ${c.n} ${t("activities")}${c.first ? ` ${t("since")} ${c.first}` : ""}`).join(" · ") || t("noRuns")}</p>
-        <form action={syncNow}><button className="primary">{t("syncNow")}</button></form>
+        <ActionForm action={syncNow} success={t("fb_synced")} error={t("fb_failed")}>
+          <SubmitButton primary pendingLabel={t("fb_syncing")}>{t("syncNow")}</SubmitButton>
+        </ActionForm>
         <p className="muted">{lang === "he" ? "ייבוא כל ההיסטוריה נעשה בשלבים - לחץ 'סנכרן' כמה פעמים או המתן לסנכרון היומי." : "Full history imports in chunks - tap Sync a few times or let the daily sync finish it."}</p>
       </div>
 
@@ -80,10 +85,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <p className="muted">{lang === "he"
           ? "נשמרים רק סיכומי ריצות (מרחק, זמן, דופק, הקפות) ונתוני התאוששות. לא נשמרים מסלולי GPS. הטוקנים מוצפנים (AES-256-GCM)."
           : "Only run summaries (distance, time, HR, laps) and recovery data are stored. No GPS tracks. Tokens are encrypted (AES-256-GCM)."}</p>
-        <form action={deleteEverything} className="row">
+        <ActionForm action={deleteEverything} success={t("fb_deleted")} error={t("fb_failed")} confirm={t("fb_deleteConfirm")} className="row">
           <input name="confirm" placeholder="DELETE" dir="ltr" style={{ width: 140 }} />
-          <button>{lang === "he" ? "מחק את כל הנתונים" : "Delete all data"}</button>
-        </form>
+          <SubmitButton>{lang === "he" ? "מחק את כל הנתונים" : "Delete all data"}</SubmitButton>
+        </ActionForm>
       </div>
     </>
   );
