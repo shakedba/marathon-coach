@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { planWeek, HAIFA_PLAN } from "./plan";
 import { matchWeek, proposeRebalance, weekKm } from "./rebalance";
 import type { Activity } from "./types";
+import { applyEdit, parseOp } from "./edit";
 
 const W5 = "2026-08-17";
 const W16 = "2026-11-02";
@@ -100,5 +101,57 @@ describe("matchWeek", () => {
     const m = matchWeek(week, [act("2026-11-05", 12)], {}, "2026-11-06");
     expect(m[2].state).toBe("moved");
     expect(m[3].state).toBe("moved");
+  });
+});
+
+describe("manual edits (checkEdit / applyEdit)", () => {
+  const W17 = "2026-11-09";
+  it("warns when a move creates two hard days in a row", () => {
+    const r = applyEdit(planWeek(W16, {}), "2026-11-04", { kind: "move", to: "2026-11-02" }, "2026-11-02");
+    expect(r.block).toBeNull();
+    expect(r.warnings.some((w) => w.en.includes("Two hard days"))).toBe(true);
+    expect(r.writes.map((x) => [x.w.date, x.w.type, x.reason])).toEqual([
+      ["2026-11-02", "mp", "swap:2026-11-04"],
+      ["2026-11-04", "easy", "swap:2026-11-02"],
+    ]);
+    expect(r.writes[0].w.notes?.en.startsWith("Moved from 2026-11-04")).toBe(true);
+  });
+  it("blocks past days, other weeks and race day", () => {
+    expect(applyEdit(planWeek(W16, {}), "2026-11-04", { kind: "move", to: "2026-11-02" }, "2026-11-03").block?.en).toMatch(/Past/);
+    expect(applyEdit(planWeek(W16, {}), "2026-11-07", { kind: "move", to: "2026-11-09" }, "2026-11-02").block?.en).toMatch(/same week/);
+    expect(applyEdit(planWeek(W18, {}), "2026-11-20", { kind: "rest" }, "2026-11-16").block).not.toBeNull();
+    expect(applyEdit(planWeek(W18, {}), "2026-11-18", { kind: "move", to: "2026-11-20" }, "2026-11-16").block).not.toBeNull();
+  });
+  it("race week: only easier/shorter/rest", () => {
+    expect(applyEdit(planWeek(W18, {}), "2026-11-16", { kind: "move", to: "2026-11-17" }, "2026-11-16").block?.en).toMatch(/Race week/);
+    expect(applyEdit(planWeek(W18, {}), "2026-11-17", { kind: "add", km: 6 }, "2026-11-16").block?.en).toMatch(/Race week/);
+    const r = applyEdit(planWeek(W18, {}), "2026-11-16", { kind: "short" }, "2026-11-16");
+    expect(r.block).toBeNull();
+    expect(r.writes[0].w.km).toBe(6);
+  });
+  it("adding a run in the taper warns (>10% and taper)", () => {
+    const r = applyEdit(planWeek(W17, {}), "2026-11-12", { kind: "add", km: 10 }, "2026-11-09");
+    expect(r.block).toBeNull();
+    expect(r.writes[0].w).toMatchObject({ type: "easy", km: 10, date: "2026-11-12" });
+    expect(r.warnings.map((w) => w.en).join(" ")).toMatch(/more than 10%.*Taper/);
+  });
+  it("resting a key session warns; making it easy keeps it under 10 km", () => {
+    const rest = applyEdit(planWeek(W16, {}), "2026-11-07", { kind: "rest" }, "2026-11-02");
+    expect(rest.warnings.some((w) => w.en.includes("key session"))).toBe(true);
+    const easy = applyEdit(planWeek(W16, {}), "2026-11-07", { kind: "easy" }, "2026-11-02");
+    expect(easy.writes[0].w).toMatchObject({ type: "easy", km: 10, hrCap: 145 });
+  });
+  it("warns when moving a session that was already moved", () => {
+    const first = applyEdit(planWeek(W16, {}), "2026-11-07", { kind: "move", to: "2026-11-06" }, "2026-11-02");
+    const ov = Object.fromEntries(first.writes.map((x) => [x.w.date, x.w]));
+    const again = applyEdit(planWeek(W16, ov), "2026-11-06", { kind: "move", to: "2026-11-08" }, "2026-11-02");
+    expect(again.warnings.some((w) => w.en.includes("already moved"))).toBe(true);
+  });
+  it("parses only valid ops", () => {
+    expect(parseOp("add-8")).toEqual({ kind: "add", km: 8 });
+    expect(parseOp("add-20")).toBeNull();
+    expect(parseOp("move-2026-11-03")).toEqual({ kind: "move", to: "2026-11-03" });
+    expect(parseOp("move-x")).toBeNull();
+    expect(parseOp("drop table")).toBeNull();
   });
 });

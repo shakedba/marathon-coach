@@ -1,5 +1,6 @@
 "use client";
 import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 import { useToast } from "./Toast";
 
 export type ActionResult = { ok: boolean; message?: string } | void;
@@ -9,7 +10,7 @@ export type ActionResult = { ok: boolean; message?: string } | void;
  * `success` may be a map keyed by the clicked button's value (e.g. accept/reject).
  */
 export function ActionForm({
-  action, success, error, className, style, children, confirm,
+  action, success, error, className, style, children, confirm, redirectTo,
 }: {
   action: (fd: FormData) => Promise<ActionResult>;
   success: string | Record<string, string>;
@@ -18,8 +19,11 @@ export function ActionForm({
   style?: React.CSSProperties;
   children: React.ReactNode;
   confirm?: string;
+  /** Navigate here after a confirmed success (e.g. close a preview). */
+  redirectTo?: string;
 }) {
   const toast = useToast();
+  const router = useRouter();
   return (
     <form
       className={className}
@@ -34,6 +38,7 @@ export function ActionForm({
           const pick = (v: FormDataEntryValue | null) => (typeof success === "string" ? success : success[String(v)] ?? Object.values(success)[0]);
           const clicked = fd.get("decision") ?? fd.get("status") ?? fd.get("reason") ?? fd.get("lang");
           toast("success", r && r.message ? r.message : pick(clicked));
+          if (redirectTo) router.replace(redirectTo, { scroll: false });
         } catch {
           toast("error", error);
         }

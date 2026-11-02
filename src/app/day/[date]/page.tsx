@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DayActions } from "@/components/DayActions";
+import { EditDay, RevertDay } from "@/components/EditDay";
+import { parseOp } from "@/lib/edit";
 import { ExtraCard } from "@/components/ExtraCard";
 import { Setup } from "@/components/Setup";
 import { SwipeNav } from "@/components/SwipeNav";
@@ -17,15 +19,16 @@ export const dynamic = "force-dynamic";
 
 const fmtDate = (d: string) => d.split("-").reverse().join("/");
 
-export default async function DayPage({ params }: { params: Promise<{ date: string }> }) {
+export default async function DayPage({ params, searchParams }: { params: Promise<{ date: string }>; searchParams: Promise<{ edit?: string }> }) {
   const { date } = await params;
+  const op = parseOp((await searchParams).edit);
   if (!isIsoDate(date)) notFound();
   const lang = await getLang();
   const t = tr(lang);
   const he = lang === "he";
   if (!dbConfigured()) return <Setup />;
   const today = todayLocal();
-  const [{ days, overrides }, wellness, extraStatus, skips] = await Promise.all([
+  const [{ days, overrides, plan: week }, wellness, extraStatus, skips] = await Promise.all([
     loadWeek(date, today),
     db.wellnessBetween(date, date),
     db.extraStatusesBetween(date, date),
@@ -38,6 +41,8 @@ export default async function DayPage({ params }: { params: Promise<{ date: stri
   const w = wellness[0];
   const prev = `/day/${addDays(date, -1)}`;
   const next = `/day/${addDays(date, 1)}`;
+  const canEdit = date >= today && plan.type !== "race" && day.activities.length === 0;
+  const overridden = !!overrides[date];
   const canAnswer = plan.type !== "rest" && !day.status && date <= today;
 
   return (
@@ -57,6 +62,8 @@ export default async function DayPage({ params }: { params: Promise<{ date: stri
       </p>
 
       <WorkoutCard w={plan} lang={lang} />
+      {overridden && date >= today && !op && <RevertDay date={date} lang={lang} />}
+      {canEdit && <EditDay week={week} date={date} today={today} lang={lang} op={op} />}
 
       {day.activities.map((a) => {
         const km = a.distanceM / 1000;

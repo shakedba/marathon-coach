@@ -1,5 +1,6 @@
 import { addDays } from "./dates";
 import { isRaceWeek, isTaper } from "./plan";
+export { isHard };
 import type { Activity, Change, DayStatus, Proposal, SkipReason, Step, Text, Workout } from "./types";
 
 const t = (en: string, he: string): Text => ({ en, he });
@@ -8,11 +9,11 @@ const isHard = (w: Workout) => HARD.has(w.type);
 const isRun = (w: Workout) => w.type !== "rest";
 const round05 = (x: number) => Math.round(x * 2) / 2;
 
-function rest(date: string, notes?: Text): Workout {
+export function rest(date: string, notes?: Text): Workout {
   return { date, type: "rest", km: 0, title: t("Rest", "מנוחה"), key: false, notes };
 }
 
-function easyVersion(w: Workout, factor: number, note: Text): Workout {
+export function easyVersion(w: Workout, factor: number, note: Text): Workout {
   const km = Math.max(5, round05(w.km * factor));
   return {
     date: w.date,
@@ -185,4 +186,52 @@ export function proposeRebalance(week: Workout[], missedDate: string, reason: Sk
 
 export function weekKm(week: Workout[]): number {
   return Math.round(week.reduce((s, w) => s + (w.type === "race" ? 0 : w.km), 0) * 10) / 10;
+}
+
+export interface EditCheck {
+  block: Text | null;
+  warnings: Text[];
+}
+
+/**
+ * Safety rules for a change the athlete makes by hand (move / easier / shorter / rest / add).
+ * Blocks: past days, race day, adding or moving anything in race week.
+ * Warns: new back-to-back hard days, week up >10%, adding load in the taper, moving a session that was already moved,
+ * removing a key session.
+ */
+export function checkEdit(before: Workout[], after: Workout[], changed: string[], today: string): EditCheck {
+  const warnings: Text[] = [];
+  const at = (week: Workout[], d: string) => week.find((w) => w.date === d);
+  const dm = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}`;
+  if (changed.some((d) => d < today)) return { block: t("Past days can't be changed.", "אי אפשר לשנות ימים שעברו."), warnings };
+  if (changed.some((d) => at(before, d)?.type === "race" || at(after, d)?.type === "race")) {
+    return { block: t("Race day can't be changed.", "אי אפשר לשנות את יום המרוץ."), warnings };
+  }
+  const kmBefore = weekKm(before);
+  const kmAfter = weekKm(after);
+  const isMove = changed.length > 1;
+  if (changed.some((d) => isRaceWeek(d)) && (isMove || kmAfter > kmBefore)) {
+    return { block: t("Race week is locked: you can only make sessions easier, shorter or rest.", "שבוע המרוץ נעול: אפשר רק להקל, לקצר או לנוח."), warnings };
+  }
+  for (let i = 1; i < after.length; i++) {
+    const pair = (w: Workout[]) => isHard(w[i - 1]) && isHard(w[i]);
+    if (pair(after) && !pair(before)) {
+      warnings.push(t(`Two hard days in a row (${dm(after[i - 1].date)}, ${dm(after[i].date)}). Injury risk goes up.`, `שני ימים קשים ברצף (${dm(after[i - 1].date)}, ${dm(after[i].date)}). עולה הסיכון לפציעה.`));
+    }
+  }
+  if (kmAfter > kmBefore * 1.1) {
+    warnings.push(t(`Week goes up ${Math.round(kmAfter - kmBefore)} km (more than 10%).`, `השבוע עולה ב-${Math.round(kmAfter - kmBefore)} ק"מ (יותר מ-10%).`));
+  }
+  if (kmAfter > kmBefore && changed.some((d) => isTaper(d))) {
+    warnings.push(t("Taper: adding load now costs more than it gives.", "טייפר: להוסיף עומס עכשיו עולה יותר ממה שהוא נותן."));
+  }
+  if (isMove && changed.some((d) => at(before, d)?.notes?.en.startsWith("Moved from"))) {
+    warnings.push(t("This session was already moved once.", "האימון הזה כבר הוזז פעם אחת."));
+  }
+  if (!isMove) {
+    const b = at(before, changed[0]);
+    const a = at(after, changed[0]);
+    if (b?.key && a && !a.key) warnings.push(t(`This removes a key session (${b.title.en}).`, `זה מוריד אימון מפתח (${b.title.he}).`));
+  }
+  return { block: null, warnings };
 }

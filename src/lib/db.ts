@@ -121,6 +121,13 @@ export async function overridesBetween(from: string, to: string): Promise<Record
 export async function setOverride(w: Workout, reason: string) {
   await q("INSERT INTO overrides(date,workout,reason) VALUES($1,$2::text::jsonb,$3) ON CONFLICT(date) DO UPDATE SET workout=EXCLUDED.workout, reason=EXCLUDED.reason, created_at=now()", [w.date, JSON.stringify(w), reason]);
 }
+export async function getOverride(date: string): Promise<{ workout: Workout; reason: string } | null> {
+  const r = await q("SELECT workout, reason FROM overrides WHERE date = $1", [date]);
+  return r[0] ? { workout: r[0].workout as Workout, reason: r[0].reason ?? "" } : null;
+}
+export async function deleteOverride(date: string) {
+  await q("DELETE FROM overrides WHERE date = $1", [date]);
+}
 export async function statusesBetween(from: string, to: string): Promise<Record<string, DayStatus>> {
   const r = await q("SELECT * FROM day_status WHERE date BETWEEN $1 AND $2", [from, to]);
   return Object.fromEntries(r.map((x) => [d(x.date), { date: d(x.date), status: x.status, reason: x.reason ?? undefined, feel: x.feel ?? undefined, note: x.note ?? undefined }]));

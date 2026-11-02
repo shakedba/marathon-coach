@@ -8,6 +8,9 @@ import { proposeRebalance } from "@/lib/rebalance";
 import type { SkipReason } from "@/lib/types";
 import { garminClient, persistGarmin, pushWorkouts, syncAll } from "@/lib/sync";
 import { todayLocal, addDays } from "@/lib/dates";
+import { applyEdit, parseOp } from "@/lib/edit";
+import { isIsoDate } from "@/lib/dayview";
+import { getLang } from "@/lib/lang";
 
 const REASONS: SkipReason[] = ["time", "tired", "ill", "fever", "niggle"];
 
@@ -86,4 +89,52 @@ export async function markExtra(form: FormData) {
   const v = String(form.get("status"));
   await db.setExtraStatus(date, kind, v === "done" || v === "skipped" ? v : null);
   revalidatePath("/", "layout");
+}
+
+/** Push changed days to Garmin; a failure is reported but never undoes the saved change (next sync retries). */
+async function repushGarmin(): Promise<boolean> {
+  const g = await garminClient().catch(() => null);
+  if (!g) return true;
+  try {
+    await pushWorkouts(g);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    await persistGarmin(g).catch(() => null);
+  }
+}
+
+export async function editWorkout(form: FormData): Promise<{ ok: boolean; message?: string }> {
+  const lang = await getLang();
+  const date = String(form.get("date") ?? "");
+  const op = parseOp(String(form.get("op") ?? ""));
+  if (!isIsoDate(date) || !op) return { ok: false };
+  const ws = weekStart(date);
+  const week = planWeek(ws, await db.overridesBetween(ws, addDays(ws, 6)));
+  const r = applyEdit(week, date, op, todayLocal());
+  if (r.block) return { ok: false, message: r.block[lang] };
+  for (const x of r.writes) await db.setOverride(x.w, x.reason);
+  const pushed = await repushGarmin();
+  revalidatePath("/", "layout");
+  return pushed ? { ok: true } : { ok: true, message: lang === "he" ? "נשמר. השעון יתעדכן בסנכרון הבא." : "Saved. The watch will update at the next sync." };
+}
+
+export async function revertDay(form: FormData): Promise<{ ok: boolean; message?: string }> {
+  const lang = await getLang();
+  const date = String(form.get("date") ?? "");
+  if (!isIsoDate(date)) return { ok: false };
+  if (date < todayLocal()) return { ok: false, message: lang === "he" ? "אי אפשר לשנות ימים שעברו." : "Past days can't be changed." };
+  const ov = await db.getOverride(date);
+  if (!ov) return { ok: true };
+  await db.deleteOverride(date);
+  // A swap is two rows pointing at each other: revert both, or the week would hold the same session twice.
+  const partner = /^swap:(\d{4}-\d{2}-\d{2})$/.exec(ov.reason)?.[1];
+  if (partner && partner >= todayLocal()) {
+    const p = await db.getOverride(partner);
+    if (p?.reason === `swap:${date}`) await db.deleteOverride(partner);
+  }
+  const pushed = await repushGarmin();
+  revalidatePath("/", "layout");
+  return pushed ? { ok: true } : { ok: true, message: lang === "he" ? "חזר לתוכנית. השעון יתעדכן בסנכרון הבא." : "Back to plan. The watch will update at the next sync." };
 }
