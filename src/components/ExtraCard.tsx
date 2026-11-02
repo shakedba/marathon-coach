@@ -2,6 +2,7 @@ import { markExtra } from "@/app/actions";
 import type { Extra } from "@/lib/extras";
 import { pick, tr } from "@/lib/i18n";
 import type { Lang, Text } from "@/lib/types";
+import { ActionForm, SubmitButton } from "./ActionForm";
 
 export function ExtraCard({ x, lang, status, caution }: { x: Extra; lang: Lang; status?: "done" | "skipped"; caution?: Text | null }) {
   const t = tr(lang);
@@ -31,18 +32,18 @@ export function ExtraCard({ x, lang, status, caution }: { x: Extra; lang: Lang; 
         </table>
         {x.note && <p className="muted" style={{ marginBottom: 0 }}>{pick(lang, x.note)}</p>}
       </details>
-      <form action={markExtra} className="row" style={{ marginTop: 10 }}>
+      <ActionForm action={markExtra} success={{ done: t("fb_done"), skipped: t("fb_saved"), clear: t("fb_cleared") }} error={t("fb_failed")} className="row" style={{ marginTop: 10 }}>
         <input type="hidden" name="date" value={x.date} />
         <input type="hidden" name="kind" value={x.kind} />
         {status ? (
-          <button name="status" value="clear">{t("undo")}</button>
+          <SubmitButton name="status" value="clear">{t("undo")}</SubmitButton>
         ) : (
           <>
-            <button className="primary" name="status" value="done">{t("done")}</button>
-            <button name="status" value="skipped">{t("skip")}</button>
+            <SubmitButton primary name="status" value="done">{t("done")}</SubmitButton>
+            <SubmitButton name="status" value="skipped">{t("skip")}</SubmitButton>
           </>
         )}
-      </form>
+      </ActionForm>
     </div>
   );
 }

@@ -62,16 +62,20 @@ export async function decideProposal(form: FormData) {
   revalidatePath("/", "layout");
 }
 
-export async function syncNow() {
-  await syncAll();
+export async function syncNow(): Promise<{ ok: boolean; message?: string }> {
+  const r = await syncAll();
   revalidatePath("/", "layout");
+  if (r.skipped) return { ok: true, message: r.skipped };
+  if (r.errors.length) return { ok: false, message: r.errors.join("; ") };
+  return { ok: true };
 }
 
 /** Privacy: wipe everything stored (requires typing DELETE). */
-export async function deleteEverything(form: FormData) {
-  if (form.get("confirm") !== "DELETE") return;
+export async function deleteEverything(form: FormData): Promise<{ ok: boolean; message?: string }> {
+  if (form.get("confirm") !== "DELETE") return { ok: false, message: "Type DELETE to confirm / הקלד DELETE לאישור" };
   await db.deleteAllData();
   revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 /** Strength / mobility: done, skipped, or cleared. */

@@ -9,6 +9,7 @@ import { DOW, pick, tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 import { weekKm } from "@/lib/rebalance";
 import { extrasWeek } from "@/lib/extras";
+import { SwipeNav } from "@/components/SwipeNav";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
 
   return (
     <>
+      <SwipeNav prev={`/week?w=${addDays(ws, -7)}`} next={`/week?w=${addDays(ws, 7)}`} rtl={lang === "he"}>
       <div className="spread">
         <Link className="btn" href={`/week?w=${addDays(ws, -7)}`}>‹</Link>
         <h1 className="ltr" style={{ margin: 0 }}>{ws.split("-").reverse().join("/")}</h1>
@@ -69,6 +71,8 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
           <DayActions date={d.date} lang={lang} ask />
         </div>
       ))}
+      <p className="swipe-hint">↔ {t("fb_swipe")}</p>
+      </SwipeNav>
     </>
   );
 }
