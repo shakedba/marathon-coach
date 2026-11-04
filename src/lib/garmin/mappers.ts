@@ -106,6 +106,29 @@ export function mapActivity(a: any): Activity {
     maxHr: a.maxHR ?? null,
     elevGain: a.elevationGain ?? null,
     isRace: a.eventType?.typeKey === "race",
+    trainingLoad: num(a.activityTrainingLoad),
+    aerobicTE: num(a.aerobicTrainingEffect),
+    anaerobicTE: num(a.anaerobicTrainingEffect),
+  };
+}
+
+const num = (v: unknown, dp = 1): number | null => (typeof v === "number" && Number.isFinite(v) ? Math.round(v * 10 ** dp) / 10 ** dp : null);
+
+/**
+ * Training status (/metrics-service/metrics/trainingstatus/aggregated/{date}). Only derived numbers are kept.
+ * The payload is keyed by device id; the primary device's entry is used, else the first one.
+ */
+export function mapTrainingStatus(res: any): { acuteLoad: number | null; chronicLoad: number | null; loadRatio: number | null; trainingStatus: string | null } {
+  const byDevice = res?.mostRecentTrainingStatus?.latestTrainingStatusData ?? {};
+  const entries: any[] = Object.values(byDevice);
+  const e = entries.find((x) => x?.primaryTrainingDevice) ?? entries[0];
+  const acwr = e?.acuteTrainingLoadDTO ?? {};
+  const phrase = typeof e?.trainingStatusFeedbackPhrase === "string" ? e.trainingStatusFeedbackPhrase.replace(/_\d+$/, "") : null;
+  return {
+    acuteLoad: num(acwr.dailyTrainingLoadAcute),
+    chronicLoad: num(acwr.dailyTrainingLoadChronic),
+    loadRatio: num(acwr.dailyAcuteChronicWorkloadRatio, 2),
+    trainingStatus: phrase,
   };
 }
 
@@ -114,7 +137,7 @@ export function mapLaps(splits: any): Lap[] {
   return laps.map((l) => ({ distanceM: Number(l.distance ?? 0), durationS: Number(l.movingDuration ?? l.duration ?? 0), avgHr: l.averageHR ?? null }));
 }
 
-export function mapWellness(date: string, parts: { hrv?: any; sleep?: any; bb?: any[]; readiness?: any[]; summary?: any }): Wellness {
+export function mapWellness(date: string, parts: { hrv?: any; sleep?: any; bb?: any[]; readiness?: any[]; summary?: any; status?: any }): Wellness {
   const bbDay = (parts.bb ?? []).find((d) => d?.date === date) ?? (parts.bb ?? [])[0];
   const values: number[] = (bbDay?.bodyBatteryValuesArray ?? []).map((v: any[]) => v?.[1]).filter((v: any) => typeof v === "number");
   return {
@@ -125,5 +148,6 @@ export function mapWellness(date: string, parts: { hrv?: any; sleep?: any; bb?: 
     bodyBatteryHigh: values.length ? Math.max(...values) : (bbDay?.charged ?? null),
     readiness: parts.readiness?.[0]?.score ?? null,
     restingHr: parts.summary?.restingHeartRate ?? null,
+    ...(parts.status ? mapTrainingStatus(parts.status) : {}),
   };
 }

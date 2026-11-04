@@ -130,20 +130,22 @@ const haifaWeeks: Workout[][] = [
   week(wk(16), [
     easy(10, EASY_TAPER, { hrCap: 145, notes: t("Rest instead if fever or feeling worse", "מנוחה במקום אם יש חום או הרגשה רעה") }),
     hills(5, 400),
-    block(12, 2, 8, P.mp, "mp", "2 wu + 8 km @ MP + 2 cd", "2 חימום + 8 ק\"מ בקצב מרתון + 2 שחרור", 160, t("Controlled - not faster than 5:08", "בשליטה - לא מהר מ-5:08")),
-    R(),
-    easy(8, EASY_TAPER, { hrCap: 145 }),
+    // Adjusted 4 Nov 2026 (approved): Wed MP missed (early office day). Taper: not made up; MP stays in Saturday's long run.
+    // Thu easy keeps run frequency; Fri cut to 6 to protect the last long run.
+    { ...R(), notes: t("MP session dropped (taper: not made up). Marathon pace is in Saturday's long run.", "אימון קצב המרתון ירד (טייפר: לא משלימים). קצב מרתון נמצא בארוכה של שבת.") },
+    easy(8, EASY_TAPER, { hrCap: 145, notes: t("Truly easy: HR ≤145 even if that means 5:45+/km. Optional 4×20 s strides at the end.", "קל באמת: דופק ≤145 גם אם זה 5:45+. אופציונלי: 4 האצות של 20 שנ' בסוף.") }),
+    easy(6, EASY_TAPER, { hrCap: 145, notes: t("Short and easy - protects tomorrow's long run.", "קצר וקל - שומר על הארוכה של מחר.") }),
     {
       ...block(24, 16, 8, P.mp, "long", "Last long run: 16 easy + 8 @ MP", "ריצה ארוכה אחרונה: 16 קל + 8 בקצב מרתון", 160),
-      notes: t("Race rehearsal: race breakfast, GO Isotonic gel 15 min before + every 25 min", "חזרה גנרלית: ארוחת בוקר של תחרות, ג'ל GO Isotonic רבע שעה לפני + כל 25 דק'"),
+      notes: t("Race rehearsal: race breakfast, GO Isotonic gel 15 min before + every 25 min. MP 5:07-5:13 - not faster.", "חזרה גנרלית: ארוחת בוקר של תחרות, ג'ל GO Isotonic רבע שעה לפני + כל 25 דק'. קצב מרתון 5:07-5:13 - לא מהר יותר."),
     },
     R(),
   ]),
   week(wk(17), [
     easy(10, EASY_TAPER, { hrCap: 145 }),
     block(12, 2, 6, P.mp, "mp", "2 wu + 6 km @ MP + 4 easy", "2 חימום + 6 ק\"מ בקצב מרתון + 4 קל", 160),
-    easy(8, EASY_TAPER, { hrCap: 145 }),
-    R(),
+    // Adjusted 4 Nov 2026 (approved): hard-easy-hard (Tue MP, Thu fast, Sat long); no quality the day before the long run.
+    { ...R(), notes: t("Optional: 6-8 km easy (HR ≤145) if you're home. Not counted.", "אופציונלי: 6-8 ק\"מ קל (דופק ≤145) אם אתה בבית. לא נספר.") },
     {
       type: "fast",
       km: 8,
@@ -152,13 +154,15 @@ const haifaWeeks: Workout[][] = [
       key: true,
       steps: [wuStep(), { kind: "repeat", times: 3, steps: [{ kind: "active", distM: 1000, pace: [292, 298] }, { kind: "recovery", distM: 500, pace: P.wu }] }, cdStep(1.5)],
     },
+    easy(6, EASY_TAPER, { hrCap: 145, notes: t("Easy day between the fast session and the long run.", "יום קל בין האימון המהיר לארוכה.") }),
     { ...block(14, 11, 3, P.mp, "long", "14 km easy, last 3 @ MP", "14 ק\"מ קל, 3 אחרונים בקצב מרתון", 155) },
     R(),
   ]),
   week(wk(18), [
     { ...easy(8, EASY_TAPER, { hrCap: 145 }), title: t("8 km easy + 4 strides", "8 ק\"מ קל + 4 האצות") },
-    R(),
+    // Adjusted 4 Nov 2026 (approved): Wednesday run moved to Tuesday; race eve stays rest.
     { ...block(6, 2, 2, P.mp, "easy", "6 km easy incl. 2 km @ MP", "6 ק\"מ קל כולל 2 ק\"מ בקצב מרתון"), key: false },
+    { ...R(), notes: t("Optional: 20 min very easy if you're home.", "אופציונלי: 20 דק' קל מאוד אם אתה בבית.") },
     { ...R(), notes: t("Bib + gels ready", "מספר חזה + ג'לים מוכנים") },
     {
       ...race(42.2, "HAIFA MARATHON - solo, 06:30", "מרתון חיפה - לבד, 06:30", P.mp),

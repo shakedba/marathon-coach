@@ -67,12 +67,15 @@ export async function kvDel(key: string) {
 /** Only summary fields are stored - never GPS tracks or raw payloads. */
 export async function upsertActivity(a: Activity) {
   await q(
-    `INSERT INTO activities(id,source,start_local,date,sport,name,distance_m,moving_s,avg_hr,max_hr,elev_gain,is_race,laps)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::text::jsonb)
+    `INSERT INTO activities(id,source,start_local,date,sport,name,distance_m,moving_s,avg_hr,max_hr,elev_gain,is_race,laps,training_load,aerobic_te,anaerobic_te)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::text::jsonb,$14,$15,$16)
      ON CONFLICT(id) DO UPDATE SET start_local=$3, date=$4, sport=$5, name=$6, distance_m=$7, moving_s=$8, avg_hr=$9, max_hr=$10,
-       elev_gain=$11, is_race=$12, laps=COALESCE(EXCLUDED.laps, activities.laps)`,
+       elev_gain=$11, is_race=$12, laps=COALESCE(EXCLUDED.laps, activities.laps),
+       training_load=COALESCE(EXCLUDED.training_load, activities.training_load),
+       aerobic_te=COALESCE(EXCLUDED.aerobic_te, activities.aerobic_te),
+       anaerobic_te=COALESCE(EXCLUDED.anaerobic_te, activities.anaerobic_te)`,
     [a.id, a.source, a.startLocal, a.date, a.sport, a.name, a.distanceM, a.movingS, a.avgHr ?? null, a.maxHr ?? null, a.elevGain ?? null, !!a.isRace,
-     a.laps ? JSON.stringify(a.laps) : null],
+     a.laps ? JSON.stringify(a.laps) : null, a.trainingLoad ?? null, a.aerobicTE ?? null, a.anaerobicTE ?? null],
   );
 }
 export async function setLaps(id: string, laps: unknown) {
@@ -84,6 +87,7 @@ export async function markDuplicate(id: string, of: string) {
 const toActivity = (r: Row): Activity => ({
   id: r.id, source: r.source, startLocal: String(r.start_local), date: d(r.date), sport: r.sport, name: r.name ?? "",
   distanceM: r.distance_m, movingS: r.moving_s, avgHr: r.avg_hr, maxHr: r.max_hr, elevGain: r.elev_gain, isRace: r.is_race, laps: r.laps,
+  trainingLoad: r.training_load ?? null, aerobicTE: r.aerobic_te ?? null, anaerobicTE: r.anaerobic_te ?? null,
 });
 /** Activities in a date range, excluding Strava duplicates of Garmin runs. */
 export async function activitiesBetween(from: string, to: string): Promise<Activity[]> {
@@ -102,15 +106,19 @@ export async function activityCount() {
 // ---------- wellness ----------
 export async function upsertWellness(w: Wellness) {
   await q(
-    `INSERT INTO wellness(date,hrv_avg,hrv_status,sleep_score,body_battery_high,readiness,resting_hr,updated_at)
-     VALUES($1,$2,$3,$4,$5,$6,$7,now())
-     ON CONFLICT(date) DO UPDATE SET hrv_avg=$2,hrv_status=$3,sleep_score=$4,body_battery_high=$5,readiness=$6,resting_hr=$7,updated_at=now()`,
-    [w.date, w.hrvAvg ?? null, w.hrvStatus ?? null, w.sleepScore ?? null, w.bodyBatteryHigh ?? null, w.readiness ?? null, w.restingHr ?? null],
+    `INSERT INTO wellness(date,hrv_avg,hrv_status,sleep_score,body_battery_high,readiness,resting_hr,acute_load,chronic_load,load_ratio,training_status,updated_at)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now())
+     ON CONFLICT(date) DO UPDATE SET hrv_avg=$2,hrv_status=$3,sleep_score=$4,body_battery_high=$5,readiness=$6,resting_hr=$7,
+       acute_load=COALESCE($8, wellness.acute_load), chronic_load=COALESCE($9, wellness.chronic_load),
+       load_ratio=COALESCE($10, wellness.load_ratio), training_status=COALESCE($11, wellness.training_status), updated_at=now()`,
+    [w.date, w.hrvAvg ?? null, w.hrvStatus ?? null, w.sleepScore ?? null, w.bodyBatteryHigh ?? null, w.readiness ?? null, w.restingHr ?? null,
+     w.acuteLoad ?? null, w.chronicLoad ?? null, w.loadRatio ?? null, w.trainingStatus ?? null],
   );
 }
 export async function wellnessBetween(from: string, to: string): Promise<Wellness[]> {
   const r = await q("SELECT * FROM wellness WHERE date BETWEEN $1 AND $2 ORDER BY date", [from, to]);
-  return r.map((x) => ({ date: d(x.date), hrvAvg: x.hrv_avg, hrvStatus: x.hrv_status, sleepScore: x.sleep_score, bodyBatteryHigh: x.body_battery_high, readiness: x.readiness, restingHr: x.resting_hr }));
+  return r.map((x) => ({ date: d(x.date), hrvAvg: x.hrv_avg, hrvStatus: x.hrv_status, sleepScore: x.sleep_score, bodyBatteryHigh: x.body_battery_high, readiness: x.readiness, restingHr: x.resting_hr,
+    acuteLoad: x.acute_load ?? null, chronicLoad: x.chronic_load ?? null, loadRatio: x.load_ratio ?? null, trainingStatus: x.training_status ?? null }));
 }
 
 // ---------- plan state ----------
@@ -120,6 +128,13 @@ export async function overridesBetween(from: string, to: string): Promise<Record
 }
 export async function setOverride(w: Workout, reason: string) {
   await q("INSERT INTO overrides(date,workout,reason) VALUES($1,$2::text::jsonb,$3) ON CONFLICT(date) DO UPDATE SET workout=EXCLUDED.workout, reason=EXCLUDED.reason, created_at=now()", [w.date, JSON.stringify(w), reason]);
+}
+export async function getOverride(date: string): Promise<{ workout: Workout; reason: string } | null> {
+  const r = await q("SELECT workout, reason FROM overrides WHERE date = $1", [date]);
+  return r[0] ? { workout: r[0].workout as Workout, reason: r[0].reason ?? "" } : null;
+}
+export async function deleteOverride(date: string) {
+  await q("DELETE FROM overrides WHERE date = $1", [date]);
 }
 export async function statusesBetween(from: string, to: string): Promise<Record<string, DayStatus>> {
   const r = await q("SELECT * FROM day_status WHERE date BETWEEN $1 AND $2", [from, to]);

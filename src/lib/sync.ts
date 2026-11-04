@@ -86,10 +86,13 @@ export async function syncGarminWellness(g: Garmin, dl: Deadline) {
   let oldest = cursor;
   for (const date of [...recent, ...older]) {
     if (!dl.ok(12_000)) break;
-    const [hrv, sleep, readiness, summary] = await Promise.all([
+    // Training status only for recent days: it changes daily and backfilling it would double the API calls.
+    const isRecent = recent.includes(date);
+    const [hrv, sleep, readiness, summary, status] = await Promise.all([
       g.hrv(date), g.sleep(profile.displayName, date), g.readiness(date), g.userSummary(profile.displayName, date),
+      isRecent ? g.trainingStatus(date) : Promise.resolve(null),
     ]);
-    await db.upsertWellness(mapWellness(date, { hrv, sleep, bb: bb.filter((x: any) => x?.date === date), readiness, summary }));
+    await db.upsertWellness(mapWellness(date, { hrv, sleep, bb: bb.filter((x: any) => x?.date === date), readiness, summary, status }));
     if (date < oldest) oldest = date;
     done++;
   }

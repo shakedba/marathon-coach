@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DayActions } from "@/components/DayActions";
+import { EditDay, RevertDay } from "@/components/EditDay";
+import { parseOp } from "@/lib/edit";
 import { ExtraCard } from "@/components/ExtraCard";
 import { Setup } from "@/components/Setup";
 import { SwipeNav } from "@/components/SwipeNav";
@@ -12,20 +14,22 @@ import { isIsoDate, lapVerdict, onPaceShare } from "@/lib/dayview";
 import { extrasFor, strengthCaution } from "@/lib/extras";
 import { DOW, pick, tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
+import { isTaper } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
 
 const fmtDate = (d: string) => d.split("-").reverse().join("/");
 
-export default async function DayPage({ params }: { params: Promise<{ date: string }> }) {
+export default async function DayPage({ params, searchParams }: { params: Promise<{ date: string }>; searchParams: Promise<{ edit?: string }> }) {
   const { date } = await params;
+  const op = parseOp((await searchParams).edit);
   if (!isIsoDate(date)) notFound();
   const lang = await getLang();
   const t = tr(lang);
   const he = lang === "he";
   if (!dbConfigured()) return <Setup />;
   const today = todayLocal();
-  const [{ days, overrides }, wellness, extraStatus, skips] = await Promise.all([
+  const [{ days, overrides, plan: week }, wellness, extraStatus, skips] = await Promise.all([
     loadWeek(date, today),
     db.wellnessBetween(date, date),
     db.extraStatusesBetween(date, date),
@@ -38,6 +42,8 @@ export default async function DayPage({ params }: { params: Promise<{ date: stri
   const w = wellness[0];
   const prev = `/day/${addDays(date, -1)}`;
   const next = `/day/${addDays(date, 1)}`;
+  const canEdit = date >= today && plan.type !== "race" && day.activities.length === 0;
+  const overridden = !!overrides[date];
   const canAnswer = plan.type !== "rest" && !day.status && date <= today;
 
   return (
@@ -57,6 +63,8 @@ export default async function DayPage({ params }: { params: Promise<{ date: stri
       </p>
 
       <WorkoutCard w={plan} lang={lang} />
+      {overridden && date >= today && !op && <RevertDay date={date} lang={lang} />}
+      {canEdit && <EditDay week={week} date={date} today={today} lang={lang} op={op} />}
 
       {day.activities.map((a) => {
         const km = a.distanceM / 1000;
@@ -75,6 +83,8 @@ export default async function DayPage({ params }: { params: Promise<{ date: stri
               {a.avgHr ? <div><b>{Math.round(a.avgHr)}</b><span>{he ? "דופק ממוצע" : "avg HR"}</span></div> : null}
               {a.maxHr ? <div><b>{Math.round(a.maxHr)}</b><span>{he ? "דופק מקס'" : "max HR"}</span></div> : null}
               {a.elevGain ? <div><b>{Math.round(a.elevGain)}</b><span>{he ? "מ' טיפוס" : "m climb"}</span></div> : null}
+              {a.trainingLoad ? <div><b>{Math.round(a.trainingLoad)}</b><span>{he ? "עומס Garmin" : "Garmin load"}</span></div> : null}
+              {a.aerobicTE ? <div><b>{a.aerobicTE.toFixed(1)}{a.anaerobicTE ? ` / ${a.anaerobicTE.toFixed(1)}` : ""}</b><span>{he ? "השפעה אירובית/אנאירובית" : "aerobic/anaerobic TE"}</span></div> : null}
             </div>
             {plan.hrCap && a.avgHr ? (
               <p className={a.avgHr > plan.hrCap ? "warn-text" : "good-text"} style={{ margin: "6px 0 0" }}>
@@ -128,7 +138,7 @@ export default async function DayPage({ params }: { params: Promise<{ date: stri
         <ExtraCard key={x.kind} x={x} lang={lang} status={extraStatus[`${date}:${x.kind}`]} caution={caution} />
       ))}
 
-      {w && (w.sleepScore || w.hrvAvg || w.restingHr || w.bodyBatteryHigh) ? (
+      {w && (w.sleepScore || w.hrvAvg || w.restingHr || w.bodyBatteryHigh || w.acuteLoad) ? (
         <div className="card">
           <b>{t("recovery")}</b>
           <div className="stats ltr" style={{ marginTop: 6 }}>
@@ -137,6 +147,17 @@ export default async function DayPage({ params }: { params: Promise<{ date: stri
             {w.restingHr ? <div><b>{w.restingHr}</b><span>{he ? "דופק מנוחה" : "resting HR"}</span></div> : null}
             {w.bodyBatteryHigh ? <div><b>{w.bodyBatteryHigh}</b><span>Body Battery</span></div> : null}
           </div>
+          {w.acuteLoad ? (
+            <div className="stats ltr" style={{ marginTop: 6 }}>
+              <div><b>{Math.round(w.acuteLoad)}</b><span>{he ? "עומס 7 ימים" : "7-day load"}</span></div>
+              {w.chronicLoad ? <div><b>{Math.round(w.chronicLoad)}</b><span>{he ? "עומס כרוני" : "chronic load"}</span></div> : null}
+              {w.loadRatio ? <div><b>{w.loadRatio.toFixed(2)}</b><span>{he ? "יחס" : "ratio"}</span></div> : null}
+              {w.trainingStatus ? <div><b style={{ fontSize: ".95rem" }}>{w.trainingStatus.toLowerCase().replace(/_/g, " ")}</b><span>{he ? "מצב אימון" : "status"}</span></div> : null}
+            </div>
+          ) : null}
+          {w.loadRatio && w.loadRatio < 0.8 && isTaper(date) ? (
+            <p className="muted" style={{ margin: "6px 0 0" }}>{he ? "יחס נמוך בטייפר הוא צפוי ותקין. לא מנסים להחזיר אותו ל\"אופטימלי\"." : "A low ratio in the taper is expected. Don't chase Garmin's \"optimal\" band now."}</p>
+          ) : null}
         </div>
       ) : null}
       <p className="swipe-hint">↔ {he ? "החלק להחלפת יום" : "Swipe to change day"}</p>

@@ -46,7 +46,7 @@ describe("mobility", () => {
     expect(extrasFor("2026-11-03", {}).map((x) => x.kind)).toEqual(["strength", "mobility"]);
     expect(extrasFor("2026-11-08", {}).map((x) => x.kind)).toEqual([]);
     expect(extrasFor("2026-11-20", {})).toEqual([]);
-    expect(extrasFor("2026-11-18", {})[0].minutes).toBe(5); // race week: light
+    expect(extrasFor("2026-11-17", {})[0].minutes).toBe(5); // race week: light
   });
 });
 
