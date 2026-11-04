@@ -41,6 +41,7 @@ function fakeGarmin() {
     sleep: async () => ({ dailySleepDTO: { sleepScores: { overall: { value: 80 } } } }),
     bodyBattery: async () => [],
     readiness: async () => [{ score: 70 }],
+    trainingStatus: async () => ({ mostRecentTrainingStatus: { latestTrainingStatusData: { "1": { trainingStatusFeedbackPhrase: "PEAKING_1", acuteTrainingLoadDTO: { dailyTrainingLoadAcute: 400, dailyTrainingLoadChronic: 600, dailyAcuteChronicWorkloadRatio: 0.67 } } } } }),
     userSummary: async () => ({ restingHeartRate: 48 }),
     createWorkout: async (w: any) => { created.push(w); return { workoutId: nextId++ }; },
     scheduleWorkout: async () => ({}),
@@ -88,6 +89,7 @@ d("integration (postgres)", () => {
     expect(r2.backTo < r.backTo).toBe(true);
     const w = await db.wellnessBetween("2026-11-04", "2026-11-04");
     expect(w[0]).toMatchObject({ hrvAvg: 55, sleepScore: 80, readiness: 70, restingHr: 48 });
+    expect(w.some((x) => x.loadRatio === 0.67 && x.trainingStatus === "PEAKING")).toBe(true);
   });
 
   it("pushes 7 days of workouts once, and replaces only changed days", async () => {
@@ -98,7 +100,7 @@ d("integration (postgres)", () => {
     const again = await sync.pushWorkouts(g);
     expect(again).toEqual([]);
     const { planFor } = await import("./plan");
-    await db.setOverride({ ...planFor("2026-11-06", {}), km: 6, title: { en: "6 km easy", he: "6 קל" } }, "test");
+    await db.setOverride({ ...planFor("2026-11-06", {}), km: 5, title: { en: "5 km easy", he: "5 קל" } }, "test");
     const third = await sync.pushWorkouts(g);
     expect(third).toEqual([{ date: "2026-11-06", action: "updated" }]);
     expect(deleted.length).toBe(1);

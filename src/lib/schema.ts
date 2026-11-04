@@ -88,4 +88,13 @@ CREATE TABLE IF NOT EXISTS garmin_extra_pushes (
   pushed_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (date, kind)
 );
+
+-- Garmin load (derived numbers only, no raw payloads)
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS training_load double precision;
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS aerobic_te double precision;
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS anaerobic_te double precision;
+ALTER TABLE wellness ADD COLUMN IF NOT EXISTS acute_load double precision;
+ALTER TABLE wellness ADD COLUMN IF NOT EXISTS chronic_load double precision;
+ALTER TABLE wellness ADD COLUMN IF NOT EXISTS load_ratio double precision;
+ALTER TABLE wellness ADD COLUMN IF NOT EXISTS training_status text;
 `;

@@ -72,6 +72,10 @@ export interface Activity {
   elevGain?: number | null;
   isRace?: boolean;
   laps?: Lap[] | null;
+  /** Garmin's per-activity training load (EPOC based) and training effect, when available. */
+  trainingLoad?: number | null;
+  aerobicTE?: number | null;
+  anaerobicTE?: number | null;
 }
 
 export interface Lap {
@@ -88,6 +92,11 @@ export interface Wellness {
   bodyBatteryHigh?: number | null;
   readiness?: number | null;
   restingHr?: number | null;
+  /** Garmin training status: 7-day acute load, chronic load, their ratio, status (e.g. PRODUCTIVE). */
+  acuteLoad?: number | null;
+  chronicLoad?: number | null;
+  loadRatio?: number | null;
+  trainingStatus?: string | null;
 }
 
 export interface Change {

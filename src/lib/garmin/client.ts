@@ -286,6 +286,9 @@ export class Garmin {
   bodyBattery(start: string, end: string) {
     return this.api<any[]>(`/wellness-service/wellness/bodyBattery/reports/daily?startDate=${start}&endDate=${end}`).catch(() => []);
   }
+  trainingStatus(date: string) {
+    return this.api<any>(`/metrics-service/metrics/trainingstatus/aggregated/${date}`).catch(() => null);
+  }
   readiness(date: string) {
     return this.api<any[]>(`/metrics-service/metrics/trainingreadiness/${date}`).catch(() => []);
   }
