@@ -146,6 +146,13 @@ export async function setStatus(s: DayStatus) {
     [s.date, s.status, s.reason ?? null, s.feel ?? null, s.note ?? null],
   );
 }
+/** Set the effort rating only; keeps an existing status and note (a day with a run but no answer becomes "done"). */
+export async function setFeel(date: string, feel: number) {
+  await q(
+    "INSERT INTO day_status(date,status,feel) VALUES($1,'done',$2) ON CONFLICT(date) DO UPDATE SET feel=$2, updated_at=now()",
+    [date, feel],
+  );
+}
 export async function addProposal(p: Proposal): Promise<number> {
   await q("UPDATE proposals SET status='rejected' WHERE week_start=$1 AND status='pending'", [p.weekStart]);
   const r = await q("INSERT INTO proposals(week_start,payload) VALUES($1,$2::text::jsonb) RETURNING id", [p.weekStart, JSON.stringify(p)]);

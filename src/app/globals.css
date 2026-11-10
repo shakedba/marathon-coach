@@ -82,3 +82,10 @@ ul.changes { margin: 8px 0; padding-inline-start: 18px; }
 ul.changes li { margin: 4px 0; }
 .banner.bad { color: var(--bad); }
 details.card > summary { cursor: pointer; }
+ul.findings { list-style: none; padding: 0; margin: 8px 0 0; }
+.finding { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-top: 1px solid var(--line); }
+.finding:first-child { border-top: 0; }
+.finding.warn > div:first-of-type { color: var(--ink); }
+a.src { font-size: .8rem; color: var(--accent); text-decoration: none; }
+table.segs { margin-top: 8px; }
+table.segs td, table.segs th { padding: 4px 6px; text-align: start; }

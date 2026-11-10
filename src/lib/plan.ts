@@ -145,17 +145,25 @@ const haifaWeeks: Workout[][] = [
     easy(10, EASY_TAPER, { hrCap: 145 }),
     block(12, 2, 6, P.mp, "mp", "2 wu + 6 km @ MP + 4 easy", "2 חימום + 6 ק\"מ בקצב מרתון + 4 קל", 160),
     // Adjusted 4 Nov 2026 (approved): hard-easy-hard (Tue MP, Thu fast, Sat long); no quality the day before the long run.
-    { ...R(), notes: t("Optional: 6-8 km easy (HR ≤145) if you're home. Not counted.", "אופציונלי: 6-8 ק\"מ קל (דופק ≤145) אם אתה בבית. לא נספר.") },
+    // Adjusted 10 Nov 2026 (approved): full rest, the optional run is dropped.
+    { ...R(), notes: t("Full rest - no optional run this week.", "מנוחה מלאה - בלי ריצה אופציונלית השבוע.") },
     {
       type: "fast",
       km: 8,
       pace: around(P.fast, 5),
       title: t("3×1 km @ 4:55 (8 km total)", "3×1 ק\"מ ב-4:55 (8 ק\"מ סה\"כ)"),
       key: true,
+      notes: t(
+        "Readiness check: if HRV is low/unbalanced, resting HR is 5+ above normal, or legs feel heavy in the warm-up -> 6 km easy + 4x20 s strides instead.",
+        "בדיקה לפני: אם סטטוס ה-HRV ב-Garmin נמוך/לא מאוזן, דופק המנוחה בבוקר גבוה ב-5+ מהרגיל, או שהרגליים כבדות בחימום - במקום זה 6 ק\"מ קל + 4 האצות של 20 שנ'.",
+      ),
       steps: [wuStep(), { kind: "repeat", times: 3, steps: [{ kind: "active", distM: 1000, pace: [292, 298] }, { kind: "recovery", distM: 500, pace: P.wu }] }, cdStep(1.5)],
     },
-    easy(6, EASY_TAPER, { hrCap: 145, notes: t("Easy day between the fast session and the long run.", "יום קל בין האימון המהיר לארוכה.") }),
-    { ...block(14, 11, 3, P.mp, "long", "14 km easy, last 3 @ MP", "14 ק\"מ קל, 3 אחרונים בקצב מרתון", 155) },
+    easy(6, EASY_TAPER, { hrCap: 145, notes: t("Easy day before the long run: not faster than 5:30, effort 3-4/10 (you can talk in full sentences).", "יום קל לפני הארוכה: לא מהר מ-5:30, מאמץ 3-4/10 (אפשר לדבר במשפטים מלאים).") }),
+    {
+      ...block(14, 11, 3, P.mp, "long", "14 km easy, last 3 @ MP", "14 ק\"מ קל, 3 אחרונים בקצב מרתון", 155),
+      notes: t("Last 3 km at marathon pace - not faster than 5:10.", "3 ק\"מ אחרונים בקצב מרתון - לא מהר מ-5:10."),
+    },
     R(),
   ]),
   week(wk(18), [
@@ -194,6 +202,7 @@ export const TLV_OUTLINE: { weekStart: string; phase: Text; km: number; key: Tex
 ];
 
 export const HAIFA_RACE_PLAN = [
+  // HR is a sanity check only: the wrist sensor is unreliable for this athlete (10 Nov 2026). Pace + effort lead.
   { km: "1-5", pace: "5:18-5:20", hr: "≤152", cum: "~26:30" },
   { km: "5-21.1", pace: "5:12-5:15", hr: "≤158", cum: "~1:50 @ half" },
   { km: "21-32", pace: "5:10", hr: "≤163", cum: "" },

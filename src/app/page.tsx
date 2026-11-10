@@ -6,6 +6,8 @@ import { Setup } from "@/components/Setup";
 import { WorkoutCard } from "@/components/WorkoutCard";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { ExtraCard } from "@/components/ExtraCard";
+import { AnalysisCard } from "@/components/AnalysisCard";
+import { analyzeRun, mainRun } from "@/lib/analysis";
 import { extrasFor, strengthCaution } from "@/lib/extras";
 import * as db from "@/lib/db";
 import { dbConfigured, loadWeek } from "@/lib/data";
@@ -69,6 +71,11 @@ export default async function Today() {
           </div>
         </div>
       ))}
+
+      {(() => {
+        const run = mainRun(day.activities);
+        return run ? <AnalysisCard a={analyzeRun(day.plan, run, day.status?.feel ?? null)} lang={lang} date={today} compact /> : null;
+      })()}
 
       {day.plan.type !== "rest" && !day.status && <DayActions date={today} lang={lang} ran={day.activities.length > 0} />}
       {day.status && (

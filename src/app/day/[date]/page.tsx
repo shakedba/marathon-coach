@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { DayActions } from "@/components/DayActions";
 import { EditDay, RevertDay } from "@/components/EditDay";
 import { parseOp } from "@/lib/edit";
+import { AnalysisCard } from "@/components/AnalysisCard";
+import { analyzeRun, lapTargets, mainRun, RPE_SINCE } from "@/lib/analysis";
 import { ExtraCard } from "@/components/ExtraCard";
 import { Setup } from "@/components/Setup";
 import { SwipeNav } from "@/components/SwipeNav";
@@ -10,7 +12,7 @@ import { WorkoutCard } from "@/components/WorkoutCard";
 import * as db from "@/lib/db";
 import { dbConfigured, loadWeek } from "@/lib/data";
 import { addDays, fmtDuration, fmtPace, todayLocal, weekday } from "@/lib/dates";
-import { isIsoDate, lapVerdict, onPaceShare } from "@/lib/dayview";
+import { isIsoDate } from "@/lib/dayview";
 import { extrasFor, strengthCaution } from "@/lib/extras";
 import { DOW, pick, tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
@@ -29,11 +31,12 @@ export default async function DayPage({ params, searchParams }: { params: Promis
   const he = lang === "he";
   if (!dbConfigured()) return <Setup />;
   const today = todayLocal();
-  const [{ days, overrides, plan: week }, wellness, extraStatus, skips] = await Promise.all([
+  const [{ days, overrides, plan: week }, wellness, extraStatus, skips, history] = await Promise.all([
     loadWeek(date, today),
     db.wellnessBetween(date, date),
     db.extraStatusesBetween(date, date),
     db.recentSkips(addDays(date, -3), date),
+    db.activitiesBetween(addDays(date, -60), addDays(date, -1)),
   ]);
   const day = days.find((d) => d.date === date)!;
   const plan = day.plan;
@@ -42,6 +45,9 @@ export default async function DayPage({ params, searchParams }: { params: Promis
   const w = wellness[0];
   const prev = `/day/${addDays(date, -1)}`;
   const next = `/day/${addDays(date, 1)}`;
+  const run = mainRun(day.activities);
+  const rpeDay = date >= RPE_SINCE;
+  const analysis = run ? analyzeRun(plan, run, rpeDay ? day.status?.feel ?? null : undefined, history.flatMap((x) => x.laps ?? [])) : null;
   const canEdit = date >= today && plan.type !== "race" && day.activities.length === 0;
   const overridden = !!overrides[date];
   const canAnswer = plan.type !== "rest" && !day.status && date <= today;
@@ -69,7 +75,8 @@ export default async function DayPage({ params, searchParams }: { params: Promis
       {day.activities.map((a) => {
         const km = a.distanceM / 1000;
         const laps = a.laps ?? [];
-        const share = onPaceShare(laps, plan.type, plan.pace);
+        const targets = lapTargets(plan, laps);
+        const hrOk = analysis?.hr.quality === "ok";
         return (
           <div className="card" key={a.id}>
             <div className="spread">
@@ -86,18 +93,11 @@ export default async function DayPage({ params, searchParams }: { params: Promis
               {a.trainingLoad ? <div><b>{Math.round(a.trainingLoad)}</b><span>{he ? "עומס Garmin" : "Garmin load"}</span></div> : null}
               {a.aerobicTE ? <div><b>{a.aerobicTE.toFixed(1)}{a.anaerobicTE ? ` / ${a.anaerobicTE.toFixed(1)}` : ""}</b><span>{he ? "השפעה אירובית/אנאירובית" : "aerobic/anaerobic TE"}</span></div> : null}
             </div>
-            {plan.hrCap && a.avgHr ? (
-              <p className={a.avgHr > plan.hrCap ? "warn-text" : "good-text"} style={{ margin: "6px 0 0" }}>
-                {a.avgHr > plan.hrCap
-                  ? (he ? `דופק ממוצע מעל התקרה (${plan.hrCap})` : `Average HR above the cap (${plan.hrCap})`)
-                  : (he ? `דופק ממוצע מתחת לתקרה (${plan.hrCap}) ✓` : `Average HR under the cap (${plan.hrCap}) ✓`)}
+            {plan.hrCap && a.avgHr && hrOk ? (
+              <p className="muted" style={{ margin: "6px 0 0" }}>
+                {he ? `דופק ממוצע ${Math.round(a.avgHr)} מול תקרה ${plan.hrCap} (בדיקת שפיות בלבד)` : `Average HR ${Math.round(a.avgHr)} vs cap ${plan.hrCap} (sanity check only)`}
               </p>
             ) : null}
-            {share !== null && (
-              <p className="muted" style={{ margin: "4px 0 0" }}>
-                {he ? `${share}% מהמרחק בטווח הקצב המתוכנן` : `${share}% of the distance in the planned pace range`}
-              </p>
-            )}
             {laps.length > 1 && (
               <details style={{ marginTop: 8 }} open={laps.length <= 30}>
                 <summary className="muted">{laps.length} {he ? "הקפות" : "laps"}</summary>
@@ -105,30 +105,34 @@ export default async function DayPage({ params, searchParams }: { params: Promis
                   <thead><tr><th>#</th><th>km</th><th>{he ? "זמן" : "time"}</th><th>/km</th><th>HR</th></tr></thead>
                   <tbody>
                     {laps.map((l, i) => {
-                      const v = lapVerdict(l, plan.type, plan.pace);
+                      const tg = targets[i];
+                      const p = l.distanceM > 0 ? l.durationS / (l.distanceM / 1000) : 0;
+                      const v = !tg || l.distanceM < 300 ? null : p < tg[0] - 5 ? "fast" : p > tg[1] + 5 ? "slow" : "ok";
                       return (
                         <tr key={i}>
                           <td className="muted">{i + 1}</td>
                           <td>{(l.distanceM / 1000).toFixed(2)}</td>
                           <td>{fmtDuration(l.durationS)}</td>
                           <td className={v ? `lap-${v}` : undefined}>{l.distanceM > 0 ? fmtPace(l.durationS / (l.distanceM / 1000)) : "—"}{v === "fast" ? " ↑" : v === "slow" ? " ↓" : ""}</td>
-                          <td className={plan.hrCap && l.avgHr && l.avgHr > plan.hrCap ? "lap-slow" : undefined}>{l.avgHr ? Math.round(l.avgHr) : "—"}</td>
+                          <td className={hrOk ? undefined : "muted"}>{l.avgHr ? Math.round(l.avgHr) : "—"}</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
-                {plan.pace && <p className="muted" style={{ margin: "4px 0 0" }}>{he ? "↑ מהיר מהטווח · ↓ איטי מהטווח" : "↑ faster than range · ↓ slower than range"}</p>}
+                <p className="muted" style={{ margin: "4px 0 0" }}>{he ? "צבע לפי היעד של כל קטע · ↑ מהיר · ↓ איטי" : "Coloured by each part's target · ↑ fast · ↓ slow"}{hrOk ? "" : he ? " · דופק באפור: לא אמין" : " · HR in grey: unreliable"}</p>
               </details>
             )}
           </div>
         );
       })}
 
+      {analysis && <AnalysisCard a={analysis} lang={lang} date={date} rpeMissing={rpeDay && !day.status?.feel && day.status?.status !== "skipped" && !canAnswer} />}
+
       {day.status && (
         <div className="card">
           <b>{day.status.status === "done" ? `✓ ${t("done")}` : `✗ ${t("skipped")} · ${t(`reason_${day.status.reason ?? "time"}` as "reason_time")}`}</b>
-          {day.status.feel ? <span className="muted"> · {t("feel")}: {day.status.feel}/10</span> : null}
+          {day.status.feel ? <span className="muted"> · {rpeDay ? t("feel") : he ? "תחושה" : "Feel"}: {day.status.feel}/10</span> : null}
           {day.status.note && <p style={{ margin: "6px 0 0" }}>{day.status.note}</p>}
         </div>
       )}
