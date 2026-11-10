@@ -138,3 +138,13 @@ export async function revertDay(form: FormData): Promise<{ ok: boolean; message?
   revalidatePath("/", "layout");
   return pushed ? { ok: true } : { ok: true, message: lang === "he" ? "חזר לתוכנית. השעון יתעדכן בסנכרון הבא." : "Back to plan. The watch will update at the next sync." };
 }
+
+export async function rateEffort(form: FormData): Promise<{ ok: boolean; message?: string }> {
+  const date = String(form.get("date") ?? "");
+  const f = Number(form.get("feel"));
+  if (!isIsoDate(date) || !Number.isInteger(f) || f < 1 || f > 10) return { ok: false };
+  if (date > todayLocal()) return { ok: false };
+  await db.setFeel(date, f);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}

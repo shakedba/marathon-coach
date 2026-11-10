@@ -25,11 +25,12 @@ export default async function RacesPage() {
       <div className="card">
         <h2 style={{ marginTop: 0 }}>{t("racePlan")} · {pick(lang, RACES[0].name)}</h2>
         <table className="ltr">
-          <thead><tr><th>km</th><th>pace</th><th>HR</th><th>time</th></tr></thead>
+          <thead><tr><th>km</th><th>pace</th><th>HR*</th><th>time</th></tr></thead>
           <tbody>{HAIFA_RACE_PLAN.map((s) => <tr key={s.km}><td>{s.km}</td><td>{s.pace}</td><td>{s.hr}</td><td>{s.cum}</td></tr>)}</tbody>
         </table>
         <ul>
-          <li><b>{he ? "חוק:" : "Rule:"}</b> {he ? "דופק מעל 158 לפני חצי הדרך = להאט, גם אם הקצב מרגיש קל." : "HR above 158 before halfway = slow down, even if the pace feels easy."}</li>
+          <li><b>{he ? "חוק:" : "Rule:"}</b> {he ? "הקצב והתחושה מובילים: לא מהר מ-5:18 בפתיחה ולא מהר מ-5:12 עד החצי. עד החצי המאמץ \"נוח ובשליטה\" (6/10)." : "Pace and effort lead: not faster than 5:18 at the start and 5:12 to halfway. Effort to halfway: comfortable and controlled (6/10)."}</li>
+          <li className="muted">{he ? "* דופק: בדיקת שפיות בלבד. חיישן היד לא אמין אצלך; קפיצה פתאומית בלי שינוי קצב = להתעלם." : "* HR: sanity check only. Your wrist sensor is unreliable; a sudden jump with no change in pace = ignore it."}</li>
           <li>{he ? "חום מעל 22°C: להוסיף 5-10 שנ' לק\"מ." : "Above 22°C: add 5-10 s/km."}</li>
           <li>{he ? "רץ לבד, בקצב שלך." : "Run solo, at your own pace."}</li>
         </ul>

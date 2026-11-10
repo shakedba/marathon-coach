@@ -25,7 +25,7 @@ const dict = {
   km: { en: "km", he: 'ק"מ' },
   planned: { en: "Planned", he: "מתוכנן" },
   actual: { en: "Actual", he: "בפועל" },
-  feel: { en: "Feel (1-10)", he: "תחושה (1-10)" },
+  feel: { en: "Effort (1-10)", he: "מאמץ (1-10)" },
   save: { en: "Save", he: "שמור" },
   pending: { en: "Suggested change", he: "שינוי מוצע" },
   accept: { en: "Accept", he: "אשר" },
