@@ -86,6 +86,7 @@ export default async function Today() {
           <>
             <b className="hero-title">😌 {t("rest")}</b>
             {plan.notes && <p className="muted" style={{ margin: "6px 0 0" }}>{pick(lang, plan.notes)}</p>}
+            <Link className="day-link" href={`/day/${today}`}>{he ? "פרטים ושינוי ›" : "Details & changes ›"}</Link>
           </>
         ) : (
           <>
@@ -104,6 +105,7 @@ export default async function Today() {
               <span className="muted">{garmin ? (pushes[today] ? (he ? "⌚ בשעון ✓" : "⌚ On your watch ✓") : he ? "⌚ יישלח בסנכרון הבא" : "⌚ Sent at next sync") : ""}</span>
               {day.status?.status === "skipped" ? <span className="tag skipped">{t("skipped")}</span> : <SkipInline date={today} lang={lang} />}
             </div>
+            <Link className="day-link" href={`/day/${today}`}>{he ? "פרטים ושינוי אימון ›" : "Details & change workout ›"}</Link>
           </>
         )}
         {w && (w.sleepScore || w.hrvStatus || w.restingHr) ? (

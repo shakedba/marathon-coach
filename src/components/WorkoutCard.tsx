@@ -46,6 +46,7 @@ export function WorkoutCard({ w, lang, compact = false }: { w: Workout; lang: La
       </div>
       <div className="row muted" style={{ marginTop: 6 }}>
         {w.pace && <span>{t("pace")}: <b className="ltr">{fmtPace(w.pace[0])}-{fmtPace(w.pace[1])}</b></span>}
+        {w.hrCap && <span title={lang === "he" ? "חיישן היד לא אמין - בדיקת שפיות בלבד" : "Wrist sensor unreliable - sanity check only"}>· {t("hrCap")} <span className="ltr">{w.hrCap}</span>*</span>}
       </div>
       {w.notes && <div style={{ marginTop: 6 }}>{pick(lang, w.notes)}</div>}
       {!compact && w.steps && w.steps.length > 1 && (
