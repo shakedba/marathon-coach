@@ -18,7 +18,7 @@ export default async function ProgressPage() {
   if (!dbConfigured()) return <Setup />;
   const today = todayLocal();
   const [insights, acts, overrides, well] = await Promise.all([
-    loadInsights(today),
+    loadInsights(today).catch((e) => { console.error("insights failed", e); return []; }),
     db.activitiesBetween(addDays(PLAN_START, -14), today),
     db.overridesBetween(PLAN_START, addDays(today, 30)),
     db.wellnessBetween(addDays(today, -13), today),
