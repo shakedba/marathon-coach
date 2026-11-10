@@ -7,7 +7,7 @@ import { SwipeNav } from "@/components/SwipeNav";
 import { SyncStatus } from "@/components/SyncStatus";
 import { WeekStrip } from "@/components/WeekStrip";
 import { StepText } from "@/components/WorkoutCard";
-import { analyzeRun, mainRun } from "@/lib/analysis";
+import { analyzeRun, mainRun, RPE_SINCE } from "@/lib/analysis";
 import * as db from "@/lib/db";
 import { dbConfigured, loadWeek } from "@/lib/data";
 import { isIsoDate } from "@/lib/dayview";
@@ -48,7 +48,9 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
   const day = days.find((x) => x.date === sel)!;
   const plan = day.plan;
   const run = mainRun(day.activities);
-  const analysis = run ? analyzeRun(plan, run, day.status?.feel ?? null) : null;
+  // Ratings before RPE_SINCE were "feel" (direction unclear): same rule as the day page - not used, not asked for.
+  const rpeDay = sel >= RPE_SINCE;
+  const analysis = run ? analyzeRun(plan, run, rpeDay ? day.status?.feel ?? null : undefined) : null;
   const unanswered = isToday ? days.filter((x) => x.state === "missed" && !x.status) : [];
   const extras = extrasFor(sel, overrides);
   const race = RACES.find((r) => r.date >= today);
@@ -96,7 +98,9 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
                 <li key={i} className={`finding ${f.level}`}><span aria-hidden>{f.level === "warn" ? "⚠️" : "✅"}</span><div>{pick(lang, f.text)}</div></li>
               ))}
             </ul>
-            {!day.status?.feel ? <EffortChips date={sel} lang={lang} /> : <p className="muted" style={{ margin: "6px 0 0" }}>{t("feel")}: {day.status.feel}/10</p>}
+            {day.status?.feel
+              ? <p className="muted" style={{ margin: "6px 0 0" }}>{rpeDay ? t("feel") : he ? "תחושה" : "Feel"}: {day.status.feel}/10</p>
+              : rpeDay ? <EffortChips date={sel} lang={lang} /> : null}
             <Link className="day-link" href={`/day/${sel}`}>{he ? "ניתוח מלא ›" : "Full analysis ›"}</Link>
           </>
         ) : plan.type === "rest" ? (
