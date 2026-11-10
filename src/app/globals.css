@@ -152,3 +152,10 @@ details.skip[open] { width: 100%; }
 .skel-card.short { height: 70px; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .skel, .spinner { animation: none; } html { scroll-behavior: auto; } }
+.day-nav { display: flex; align-items: center; gap: 6px; }
+.nav-arrow { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; min-height: 44px; font-size: 1.5rem; color: var(--accent); text-decoration: none; border-radius: 10px; }
+.nav-arrow:active { background: var(--soft); }
+.back-today { color: var(--accent); font-size: .88rem; text-decoration: none; }
+.wd.is-sel { background: var(--soft); }
+.wd.is-today { outline: 2px solid var(--accent); }
+.wd.is-today:not(.is-sel) { background: transparent; }
