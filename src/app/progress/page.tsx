@@ -1,5 +1,7 @@
 import { MpHrChart, VolumeChart } from "@/components/Charts";
 import { Setup } from "@/components/Setup";
+import { InsightsList } from "@/components/Insights";
+import { loadInsights } from "@/lib/insights-data";
 import * as db from "@/lib/db";
 import { dbConfigured } from "@/lib/data";
 import { addDays, fmtDuration, fmtPace, todayLocal } from "@/lib/dates";
@@ -15,7 +17,8 @@ export default async function ProgressPage() {
   const t = tr(lang);
   if (!dbConfigured()) return <Setup />;
   const today = todayLocal();
-  const [acts, overrides, well] = await Promise.all([
+  const [insights, acts, overrides, well] = await Promise.all([
+    loadInsights(today),
     db.activitiesBetween(addDays(PLAN_START, -14), today),
     db.overridesBetween(PLAN_START, addDays(today, 30)),
     db.wellnessBetween(addDays(today, -13), today),
@@ -26,6 +29,7 @@ export default async function ProgressPage() {
   return (
     <>
       <h1>{t("progress")}</h1>
+      <InsightsList items={insights} lang={lang} />
       {pred && (
         <div className="card">
           <div className="muted">{t("prediction")} (Riegel)</div>

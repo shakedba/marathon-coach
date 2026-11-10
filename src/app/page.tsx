@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { EffortChips } from "@/components/EffortChips";
+import { CoachCard } from "@/components/Insights";
+import { loadInsights } from "@/lib/insights-data";
 import { Proposals } from "@/components/Proposals";
 import { Setup } from "@/components/Setup";
 import { SkipInline } from "@/components/SkipInline";
@@ -45,6 +47,8 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
     db.kvGet<string>("garmin_tokens"),
     db.overridesBetween(tomorrowDate, tomorrowDate),
   ]);
+  // Coach insights are about "now": only on today's view.
+  const insights = isToday ? await loadInsights(today).catch((e) => { console.error("insights failed", e); return []; }) : [];
   const day = days.find((x) => x.date === sel)!;
   const plan = day.plan;
   const run = mainRun(day.activities);
@@ -138,6 +142,8 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
           </div>
         ) : null}
       </section>
+
+      <CoachCard items={insights} lang={lang} />
 
       <WeekStrip days={days} today={today} selected={sel} planned={weekKm(week)} tomorrow={tomorrow} lang={lang} />
 

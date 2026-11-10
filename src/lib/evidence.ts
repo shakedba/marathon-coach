@@ -20,5 +20,17 @@ export const EVIDENCE = {
     title: "Bosquet et al. 2007 - Effects of tapering on performance: a meta-analysis",
     url: "https://pubmed.ncbi.nlm.nih.gov/17762369/",
   },
+  hrvGuided: {
+    title: "Kiviniemi et al. 2007 - Endurance training guided by daily HRV measurements",
+    url: "https://pubmed.ncbi.nlm.nih.gov/17849143/",
+  },
+  hrMonitoring: {
+    title: "Buchheit 2014 - Monitoring training status with HR measures (Frontiers in Physiology)",
+    url: "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3936188/",
+  },
+  riegel: {
+    title: "Riegel formula for race-time prediction (T2 = T1 × (D2/D1)^1.06)",
+    url: "https://en.wikipedia.org/wiki/Peter_Riegel",
+  },
 } as const;
 export type EvidenceKey = keyof typeof EVIDENCE;
