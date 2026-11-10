@@ -89,3 +89,66 @@ ul.findings { list-style: none; padding: 0; margin: 8px 0 0; }
 a.src { font-size: .8rem; color: var(--accent); text-decoration: none; }
 table.segs { margin-top: 8px; }
 table.segs td, table.segs th { padding: 4px 6px; text-align: start; }
+
+/* ---- B1: lean home + basic UX ---- */
+main { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+button, .btn { min-height: 44px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+html { scroll-behavior: smooth; }
+[id] { scroll-margin-top: 12px; }
+table.laps, table.segs { display: block; overflow-x: auto; white-space: nowrap; }
+
+.home-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin: 2px 0 6px; }
+.countdown { color: var(--accent); font-weight: 600; font-size: .92rem; }
+button.sync { border: 0; background: transparent; color: var(--muted); font-size: .82rem; padding: 6px 4px; min-height: 32px; display: inline-flex; align-items: center; gap: 6px; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.dot.bad { background: var(--bad); }
+.alert-row { display: block; padding: 12px 14px; margin: 8px 0; border-radius: 12px; background: var(--soft); color: var(--ink); text-decoration: none; }
+
+.hero { padding: 16px; }
+.hero.before { border-color: var(--accent); }
+.hero-title { font-size: 1.25rem; }
+.hero-target { margin: 6px 0 0; font-size: 1.05rem; }
+.steps.compact { margin: 8px 0 0; padding-inline-start: 20px; }
+.steps.compact li { margin: 2px 0; }
+.cue { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--soft); font-size: .92rem; }
+.cue.warn { background: #fff4e5; color: #7a3e00; }
+@media (prefers-color-scheme: dark) { .cue.warn { background: #3a2a14; color: #ffd8a8; } }
+.readiness { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
+
+details.skip > summary { list-style: none; cursor: pointer; color: var(--muted); font-size: .9rem; padding: 8px 4px; }
+details.skip > summary::-webkit-details-marker { display: none; }
+details.skip[open] { width: 100%; }
+
+.effort { margin-top: 10px; }
+.effort-label { display: flex; justify-content: space-between; gap: 8px; font-size: .92rem; margin-bottom: 6px; }
+.chips { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; direction: ltr; }
+.chips button { padding: 0; min-height: 40px; border-radius: 8px; font-weight: 600; }
+
+.week-dots { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.wd { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; border-radius: 10px; text-decoration: none; color: var(--ink); font-size: .8rem; }
+.wd.is-today { background: var(--soft); outline: 2px solid var(--accent); }
+.wd-mark { height: 1.1em; font-weight: 700; }
+.wd.done .wd-mark, .wd.moved .wd-mark { color: var(--good); }
+.wd.partial .wd-mark { color: var(--warn); }
+.wd.missed .wd-mark, .wd.skipped .wd-mark { color: var(--bad); }
+.wd-km { color: var(--muted); font-size: .75rem; }
+.wd.is-rest .wd-day { color: var(--muted); }
+.km-bar { height: 6px; background: var(--line); border-radius: 999px; margin-top: 10px; overflow: hidden; }
+.km-bar span { display: block; height: 100%; background: var(--good); border-radius: 999px; }
+
+.extras-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; }
+.chip { padding: 10px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none; font-size: .9rem; min-height: 44px; display: inline-flex; align-items: center; }
+.chip.done { border-color: var(--good); color: var(--good); }
+.chip.skipped { color: var(--muted); }
+
+.ptr { display: flex; align-items: flex-end; justify-content: center; overflow: hidden; color: var(--muted); }
+.ptr-arrow { padding-bottom: 6px; }
+.ptr .spinner { margin-bottom: 8px; }
+
+.skel { background: linear-gradient(90deg, var(--line) 25%, var(--soft) 50%, var(--line) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 14px; margin: 10px 0; }
+.skel-title { height: 28px; width: 45%; }
+.skel-card { height: 150px; }
+.skel-card.short { height: 70px; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skel, .spinner { animation: none; } html { scroll-behavior: auto; } }

@@ -1,12 +1,10 @@
 import Link from "next/link";
-import { rateEffort } from "@/app/actions";
 import type { Analysis, Finding } from "@/lib/analysis";
 import { fmtPace } from "@/lib/dates";
 import { EVIDENCE } from "@/lib/evidence";
 import { pick, tr } from "@/lib/i18n";
 import type { Lang } from "@/lib/types";
-import { ActionForm, SubmitButton } from "./ActionForm";
-import { EffortSelect } from "./EffortSelect";
+import { EffortChips } from "./EffortChips";
 
 const ICON = { good: "✅", info: "ℹ️", warn: "⚠️" } as const;
 const order = (f: Finding) => (f.level === "warn" ? 0 : f.level === "good" ? 1 : 2);
@@ -27,7 +25,6 @@ function FindingRow({ f, lang }: { f: Finding; lang: Lang }) {
 
 export function AnalysisCard({ a, lang, date, rpeMissing, compact }: { a: Analysis; lang: Lang; date: string; rpeMissing?: boolean; compact?: boolean }) {
   const he = lang === "he";
-  const t = tr(lang);
   const findings = [...a.findings].sort((x, y) => order(x) - order(y));
   const head = a.headline === "warn" ? (he ? "יש מה לשפר" : "Something to adjust") : a.headline === "good" ? (he ? "אימון טוב" : "Good session") : he ? "ניתוח" : "Analysis";
   if (compact) {
@@ -60,13 +57,7 @@ export function AnalysisCard({ a, lang, date, rpeMissing, compact }: { a: Analys
         </tbody>
       </table>
       <ul className="findings">{findings.map((f, i) => <FindingRow key={i} f={f} lang={lang} />)}</ul>
-      {rpeMissing && (
-        <ActionForm action={rateEffort} success={he ? "המאמץ נשמר" : "Effort saved"} error={t("fb_failed")} className="row">
-          <input type="hidden" name="date" value={date} />
-          <EffortSelect lang={lang} required />
-          <SubmitButton primary pendingLabel={t("fb_saving")}>{t("save")}</SubmitButton>
-        </ActionForm>
-      )}
+      {rpeMissing && <EffortChips date={date} lang={lang} />}
       <p className="muted" style={{ margin: "8px 0 0", fontSize: ".8rem" }}>
         {he ? "מבוסס על קצב (GPS) ומאמץ. דופק מהשעון משמש רק כשהוא עובר בדיקת אמינות." : "Based on pace (GPS) and effort. Watch HR is only used when it passes a plausibility check."}
       </p>

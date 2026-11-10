@@ -2,13 +2,30 @@ import { fmtPace } from "@/lib/dates";
 import { pick, tr } from "@/lib/i18n";
 import type { Lang, Step, Workout } from "@/lib/types";
 
-function stepText(s: Step, lang: Lang): string {
-  if (s.kind === "repeat") return `${s.times}× ( ${s.steps.map((x) => stepText(x, lang)).join(" + ")} )`;
-  const names = { warmup: { en: "warm-up", he: "חימום" }, cooldown: { en: "cool-down", he: "שחרור" }, active: { en: "run", he: "ריצה" }, recovery: { en: "recovery", he: "התאוששות" } };
-  const dist = s.distM ? (s.distM >= 1000 ? `${s.distM / 1000} km` : `${s.distM} m`) : s.timeS ? `${Math.round(s.timeS / 60)} min` : "";
-  const pace = s.pace ? ` @ ${fmtPace(s.pace[0])}-${fmtPace(s.pace[1])}` : "";
-  const hr = s.hrMax ? ` (HR ≤ ${s.hrMax})` : "";
-  return `${names[s.kind][lang]} ${dist}${pace}${hr}`;
+const NAMES = { warmup: { en: "Warm-up", he: "חימום" }, cooldown: { en: "Cool-down", he: "שחרור" }, active: { en: "Run", he: "ריצה" }, recovery: { en: "Recovery", he: "התאוששות" } };
+
+function amount(s: Exclude<Step, { kind: "repeat" }>, lang: Lang) {
+  const he = lang === "he";
+  if (s.distM) return s.distM >= 1000 ? `${s.distM / 1000} ${he ? 'ק"מ' : "km"}` : `${s.distM} ${he ? "מ'" : "m"}`;
+  if (s.timeS) return `${Math.round(s.timeS / 60)} ${he ? "דק'" : "min"}`;
+  return "";
+}
+
+/** One step, localized; numbers stay left-to-right. */
+export function StepText({ s, lang }: { s: Step; lang: Lang }): React.ReactNode {
+  if (s.kind === "repeat") {
+    return (
+      <>
+        <b className="ltr">{s.times}×</b> ( {s.steps.map((x, i) => <span key={i}>{i > 0 && " + "}<StepText s={x} lang={lang} /></span>)} )
+      </>
+    );
+  }
+  return (
+    <>
+      {NAMES[s.kind][lang]} {amount(s, lang)}
+      {s.pace && <> · <span className="ltr">{fmtPace(s.pace[0])}-{fmtPace(s.pace[1])}</span></>}
+    </>
+  );
 }
 
 export function WorkoutCard({ w, lang, compact = false }: { w: Workout; lang: Lang; compact?: boolean }) {
@@ -29,12 +46,12 @@ export function WorkoutCard({ w, lang, compact = false }: { w: Workout; lang: La
       </div>
       <div className="row muted" style={{ marginTop: 6 }}>
         {w.pace && <span>{t("pace")}: <b className="ltr">{fmtPace(w.pace[0])}-{fmtPace(w.pace[1])}</b></span>}
-        {w.hrCap && <span>· {t("hrCap")}: <b className="ltr">{w.hrCap}</b></span>}
+        {w.hrCap && <span title={lang === "he" ? "חיישן היד לא אמין - בדיקת שפיות בלבד" : "Wrist sensor unreliable - sanity check only"}>· {t("hrCap")} <span className="ltr">{w.hrCap}</span>*</span>}
       </div>
       {w.notes && <div style={{ marginTop: 6 }}>{pick(lang, w.notes)}</div>}
       {!compact && w.steps && w.steps.length > 1 && (
-        <ol className="steps ltr" style={{ display: "block" }}>
-          {w.steps.map((s, i) => <li key={i}>{stepText(s, "en")}</li>)}
+        <ol className="steps">
+          {w.steps.map((s, i) => <li key={i}><StepText s={s} lang={lang} /></li>)}
         </ol>
       )}
     </div>

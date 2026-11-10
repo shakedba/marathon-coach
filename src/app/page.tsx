@@ -1,21 +1,21 @@
 import Link from "next/link";
-import { syncNow } from "./actions";
-import { DayActions } from "@/components/DayActions";
+import { EffortChips } from "@/components/EffortChips";
 import { Proposals } from "@/components/Proposals";
 import { Setup } from "@/components/Setup";
-import { WorkoutCard } from "@/components/WorkoutCard";
-import { ActionForm, SubmitButton } from "@/components/ActionForm";
-import { ExtraCard } from "@/components/ExtraCard";
-import { AnalysisCard } from "@/components/AnalysisCard";
+import { SkipInline } from "@/components/SkipInline";
+import { SyncStatus } from "@/components/SyncStatus";
+import { WeekStrip } from "@/components/WeekStrip";
+import { StepText } from "@/components/WorkoutCard";
 import { analyzeRun, mainRun } from "@/lib/analysis";
-import { extrasFor, strengthCaution } from "@/lib/extras";
 import * as db from "@/lib/db";
 import { dbConfigured, loadWeek } from "@/lib/data";
 import { addDays, diffDays, fmtPace, todayLocal, weekday } from "@/lib/dates";
+import { extrasFor } from "@/lib/extras";
 import { DOW, pick, tr } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 import { readinessFlag } from "@/lib/metrics";
-import { RACES } from "@/lib/plan";
+import { planFor, RACES } from "@/lib/plan";
+import { weekKm } from "@/lib/rebalance";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -23,79 +23,114 @@ export const maxDuration = 60;
 export default async function Today() {
   const lang = await getLang();
   const t = tr(lang);
+  const he = lang === "he";
   if (!dbConfigured()) return <Setup />;
   const today = todayLocal();
-  const [{ days, overrides }, proposals, wellness, lastSync, extraStatus, skips] = await Promise.all([
+  const tomorrowDate = addDays(today, 1);
+  const [{ days, plan: week, overrides }, proposals, wellness, lastSync, extraStatus, pushes, garmin, tomorrowOv] = await Promise.all([
     loadWeek(today, today),
     db.pendingProposals(),
     db.wellnessBetween(today, today),
     db.kvGet<{ at: string; errors: string[] }>("last_sync"),
     db.extraStatusesBetween(today, today),
-    db.recentSkips(addDays(today, -3), today),
+    db.pushesBetween(today, today),
+    db.kvGet<string>("garmin_tokens"),
+    db.overridesBetween(tomorrowDate, tomorrowDate),
   ]);
-  const extras = extrasFor(today, overrides);
-  const caution = strengthCaution(skips, today);
   const day = days.find((d) => d.date === today)!;
+  const plan = day.plan;
+  const run = mainRun(day.activities);
+  const analysis = run ? analyzeRun(plan, run, day.status?.feel ?? null) : null;
   const unanswered = days.filter((d) => d.state === "missed" && !d.status);
-  const flag = day.plan.type !== "rest" ? readinessFlag(wellness[0]) : null;
+  const extras = extrasFor(today, overrides);
   const race = RACES.find((r) => r.date >= today);
+  const w = wellness[0];
+  const flag = plan.type !== "rest" && !run ? readinessFlag(w) : null;
+  const tomorrow = planFor(tomorrowDate, tomorrowOv);
 
   return (
     <>
-      <div className="spread">
-        <h1>{t("today")} · {DOW[lang][weekday(today)]} <span className="ltr">{today.split("-").reverse().join("/")}</span></h1>
-        {race && <span className="tag">{diffDays(race.date, today)} {t("daysTo")}{pick(lang, race.name)}</span>}
-      </div>
+      <header className="home-head">
+        <div>
+          <h1 style={{ margin: 0 }}>{DOW[lang][weekday(today)]} <span className="ltr">{today.slice(8)}/{today.slice(5, 7)}</span></h1>
+          {race && <div className="countdown">{diffDays(race.date, today)} {t("daysTo")}{pick(lang, race.name)}</div>}
+        </div>
+        <SyncStatus lastAt={lastSync?.at ?? null} error={lastSync?.errors?.length ? lastSync.errors.join("; ") : undefined} lang={lang} />
+      </header>
 
-      {flag && <div className="banner">{pick(lang, flag)}</div>}
+      {/* Things that need an answer come first, as one line each */}
       <Proposals items={proposals} lang={lang} />
-
       {unanswered.map((d) => (
-        <div key={d.date}>
-          <h2>{DOW[lang][weekday(d.date)]} <span className="ltr">{d.date.slice(5)}</span> · {pick(lang, d.plan.title)}</h2>
-          <DayActions date={d.date} lang={lang} ask />
-        </div>
+        <Link key={d.date} href={`/day/${d.date}`} className="alert-row">
+          ❓ {DOW[lang][weekday(d.date)]} · {pick(lang, d.plan.title)} - {he ? "מה קרה?" : "what happened?"} ›
+        </Link>
       ))}
 
-      <WorkoutCard w={day.plan} lang={lang} />
-      <Link className="day-link" href={`/day/${today}`}>{lang === "he" ? "פרטי היום ‹" : "Day details ›"}</Link>
+      {/* The one card that matters today */}
+      <section className={`card hero ${run ? "after" : plan.type === "rest" ? "rest" : "before"}`}>
+        {run && analysis ? (
+          <>
+            <div className="spread">
+              <b className="hero-title">{analysis.headline === "warn" ? "⚠️" : "✅"} {plan.type === "rest" ? (he ? "ריצה נוספת" : "Extra run") : pick(lang, plan.title)}</b>
+              <span className="tag done ltr">{(run.distanceM / 1000).toFixed(1)} km · {fmtPace(run.movingS / (run.distanceM / 1000 || 1))}</span>
+            </div>
+            <ul className="findings">
+              {analysis.findings.filter((f) => f.level !== "info").slice(0, 2).map((f, i) => (
+                <li key={i} className={`finding ${f.level}`}><span aria-hidden>{f.level === "warn" ? "⚠️" : "✅"}</span><div>{pick(lang, f.text)}</div></li>
+              ))}
+            </ul>
+            {!day.status?.feel ? <EffortChips date={today} lang={lang} /> : <p className="muted" style={{ margin: "6px 0 0" }}>{t("feel")}: {day.status.feel}/10</p>}
+            <Link className="day-link" href={`/day/${today}`}>{he ? "ניתוח מלא ›" : "Full analysis ›"}</Link>
+          </>
+        ) : plan.type === "rest" ? (
+          <>
+            <b className="hero-title">😌 {t("rest")}</b>
+            {plan.notes && <p className="muted" style={{ margin: "6px 0 0" }}>{pick(lang, plan.notes)}</p>}
+            <Link className="day-link" href={`/day/${today}`}>{he ? "פרטים ושינוי ›" : "Details & changes ›"}</Link>
+          </>
+        ) : (
+          <>
+            <div className="spread">
+              <b className="hero-title">{pick(lang, plan.title)}</b>
+              <span className="tag">{plan.km} {t("km")}</span>
+            </div>
+            {plan.steps && plan.steps.length > 1 ? (
+              <ol className="steps compact">{plan.steps.map((s, i) => <li key={i}><StepText s={s} lang={lang} /></li>)}</ol>
+            ) : plan.pace ? (
+              <p className="hero-target">{t("pace")} <b className="ltr">{fmtPace(plan.pace[0])}-{fmtPace(plan.pace[1])}</b></p>
+            ) : null}
+            {plan.notes && <p className="cue">💬 {pick(lang, plan.notes)}</p>}
+            {flag && <p className="cue warn">⚠️ {pick(lang, flag)}</p>}
+            <div className="spread" style={{ marginTop: 8 }}>
+              <span className="muted">{garmin ? (pushes[today] ? (he ? "⌚ בשעון ✓" : "⌚ On your watch ✓") : he ? "⌚ יישלח בסנכרון הבא" : "⌚ Sent at next sync") : ""}</span>
+              {day.status?.status === "skipped" ? <span className="tag skipped">{t("skipped")}</span> : <SkipInline date={today} lang={lang} />}
+            </div>
+            <Link className="day-link" href={`/day/${today}`}>{he ? "פרטים ושינוי אימון ›" : "Details & change workout ›"}</Link>
+          </>
+        )}
+        {w && (w.sleepScore || w.hrvStatus || w.restingHr) ? (
+          <div className="readiness">
+            {w.sleepScore ? <span>😴 {w.sleepScore}</span> : null}
+            {w.hrvStatus ? <span>HRV {w.hrvStatus.toLowerCase()}</span> : null}
+            {w.restingHr ? <span>♥ {w.restingHr}</span> : null}
+          </div>
+        ) : null}
+      </section>
 
-      {day.activities.map((a) => (
-        <div className="card" key={a.id}>
-          <div className="spread">
-            <b>{a.name}</b>
-            <span className={`tag ${day.state}`}>{(a.distanceM / 1000).toFixed(1)} {t("km")}</span>
-          </div>
-          <div className="muted ltr">
-            {fmtPace(a.movingS / (a.distanceM / 1000 || 1))}/km{a.avgHr ? ` · HR ${Math.round(a.avgHr)}` : ""} · {a.source}
-          </div>
+      <WeekStrip days={days} today={today} planned={weekKm(week)} tomorrow={tomorrow} lang={lang} />
+
+      {extras.length > 0 && (
+        <div className="extras-row">
+          {extras.map((x) => {
+            const st = extraStatus[`${today}:${x.kind}`];
+            return (
+              <Link key={x.kind} href={`/day/${today}#extras`} className={`chip ${st ?? ""}`}>
+                {x.kind === "strength" ? "💪" : "🧘"} {x.kind === "strength" ? pick(lang, x.title).split(" (")[0] : t("mobility")} · {x.minutes}′ {st === "done" ? "✓" : st === "skipped" ? "✗" : ""}
+              </Link>
+            );
+          })}
         </div>
-      ))}
-
-      {(() => {
-        const run = mainRun(day.activities);
-        return run ? <AnalysisCard a={analyzeRun(day.plan, run, day.status?.feel ?? null)} lang={lang} date={today} compact /> : null;
-      })()}
-
-      {day.plan.type !== "rest" && !day.status && <DayActions date={today} lang={lang} ran={day.activities.length > 0} />}
-      {day.status && (
-        <p className="muted">
-          {day.status.status === "done" ? t("done") : `${t("skipped")} (${t(`reason_${day.status.reason ?? "time"}` as any)})`}
-          {day.status.feel ? ` · ${day.status.feel}/10` : ""}
-        </p>
       )}
-
-      {extras.map((x) => (
-        <ExtraCard key={x.kind} x={x} lang={lang} status={extraStatus[`${today}:${x.kind}`]} caution={caution} />
-      ))}
-
-      <ActionForm action={syncNow} success={t("fb_synced")} error={t("fb_failed")} className="spread" style={{ marginTop: 16 }}>
-        <span className="muted">
-          {t("lastSync")}: {lastSync ? new Date(lastSync.at).toLocaleString(lang === "he" ? "he-IL" : "en-GB", { timeZone: "Asia/Jerusalem" }) : "—"}
-          {lastSync?.errors?.length ? <span style={{ color: "var(--bad)" }}> · {lastSync.errors.join("; ")}</span> : null}
-        </span>
-        <SubmitButton pendingLabel={t("fb_syncing")}>{t("syncNow")}</SubmitButton>
-      </ActionForm>
     </>
   );
 }
