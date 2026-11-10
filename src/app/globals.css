@@ -159,3 +159,9 @@ details.skip[open] { width: 100%; }
 .wd.is-sel { background: var(--soft); }
 .wd.is-today { outline: 2px solid var(--accent); }
 .wd.is-today:not(.is-sel) { background: transparent; }
+ul.insights { list-style: none; padding: 0; margin: 6px 0 0; }
+.insight { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
+.insight:first-child { border-top: 0; }
+.insight .muted { margin-top: 2px; }
+details.why > summary { cursor: pointer; color: var(--accent); font-size: .85rem; margin-top: 4px; }
+.coach { border-color: var(--line); }
