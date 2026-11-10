@@ -72,6 +72,8 @@ export default async function DayPage({ params, searchParams }: { params: Promis
       {overridden && date >= today && !op && <RevertDay date={date} lang={lang} />}
       {canEdit && <EditDay week={week} date={date} today={today} lang={lang} op={op} />}
 
+      {analysis && <AnalysisCard a={analysis} lang={lang} date={date} rpeMissing={rpeDay && !day.status?.feel && day.status?.status !== "skipped" && !canAnswer} />}
+
       {day.activities.map((a) => {
         const km = a.distanceM / 1000;
         const laps = a.laps ?? [];
@@ -99,7 +101,7 @@ export default async function DayPage({ params, searchParams }: { params: Promis
               </p>
             ) : null}
             {laps.length > 1 && (
-              <details style={{ marginTop: 8 }} open={laps.length <= 30}>
+              <details style={{ marginTop: 8 }}>
                 <summary className="muted">{laps.length} {he ? "הקפות" : "laps"}</summary>
                 <table className="laps ltr">
                   <thead><tr><th>#</th><th>km</th><th>{he ? "זמן" : "time"}</th><th>/km</th><th>HR</th></tr></thead>
@@ -127,8 +129,6 @@ export default async function DayPage({ params, searchParams }: { params: Promis
         );
       })}
 
-      {analysis && <AnalysisCard a={analysis} lang={lang} date={date} rpeMissing={rpeDay && !day.status?.feel && day.status?.status !== "skipped" && !canAnswer} />}
-
       {day.status && (
         <div className="card">
           <b>{day.status.status === "done" ? `✓ ${t("done")}` : `✗ ${t("skipped")} · ${t(`reason_${day.status.reason ?? "time"}` as "reason_time")}`}</b>
@@ -138,6 +138,7 @@ export default async function DayPage({ params, searchParams }: { params: Promis
       )}
       {canAnswer && <DayActions date={date} lang={lang} ask={date < today && day.activities.length === 0} ran={day.activities.length > 0} />}
 
+      <div id="extras" />
       {extras.map((x) => (
         <ExtraCard key={x.kind} x={x} lang={lang} status={extraStatus[`${date}:${x.kind}`]} caution={caution} />
       ))}
