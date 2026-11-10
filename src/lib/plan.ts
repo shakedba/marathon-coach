@@ -154,7 +154,7 @@ const haifaWeeks: Workout[][] = [
       title: t("3×1 km @ 4:55 (8 km total)", "3×1 ק\"מ ב-4:55 (8 ק\"מ סה\"כ)"),
       key: true,
       notes: t(
-        "Check first: if Garmin HRV status is low/unbalanced, morning resting HR is 5+ above normal, or your legs feel heavy in the warm-up, run 6 km easy + 4×20 s strides instead.",
+        "Readiness check: if HRV is low/unbalanced, resting HR is 5+ above normal, or legs feel heavy in the warm-up -> 6 km easy + 4x20 s strides instead.",
         "בדיקה לפני: אם סטטוס ה-HRV ב-Garmin נמוך/לא מאוזן, דופק המנוחה בבוקר גבוה ב-5+ מהרגיל, או שהרגליים כבדות בחימום - במקום זה 6 ק\"מ קל + 4 האצות של 20 שנ'.",
       ),
       steps: [wuStep(), { kind: "repeat", times: 3, steps: [{ kind: "active", distM: 1000, pace: [292, 298] }, { kind: "recovery", distM: 500, pace: P.wu }] }, cdStep(1.5)],

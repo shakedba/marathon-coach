@@ -144,6 +144,8 @@ export async function rateEffort(form: FormData): Promise<{ ok: boolean; message
   const f = Number(form.get("feel"));
   if (!isIsoDate(date) || !Number.isInteger(f) || f < 1 || f > 10) return { ok: false };
   if (date > todayLocal()) return { ok: false };
+  // Only a day with a synced run can be rated: setFeel would otherwise mark a day without a run as "done".
+  if ((await db.activitiesBetween(date, date)).length === 0) return { ok: false };
   await db.setFeel(date, f);
   revalidatePath("/", "layout");
   return { ok: true };

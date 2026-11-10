@@ -4,7 +4,7 @@ import { DayActions } from "@/components/DayActions";
 import { EditDay, RevertDay } from "@/components/EditDay";
 import { parseOp } from "@/lib/edit";
 import { AnalysisCard } from "@/components/AnalysisCard";
-import { analyzeRun, lapTargets, mainRun } from "@/lib/analysis";
+import { analyzeRun, lapTargets, mainRun, RPE_SINCE } from "@/lib/analysis";
 import { ExtraCard } from "@/components/ExtraCard";
 import { Setup } from "@/components/Setup";
 import { SwipeNav } from "@/components/SwipeNav";
@@ -46,7 +46,8 @@ export default async function DayPage({ params, searchParams }: { params: Promis
   const prev = `/day/${addDays(date, -1)}`;
   const next = `/day/${addDays(date, 1)}`;
   const run = mainRun(day.activities);
-  const analysis = run ? analyzeRun(plan, run, day.status?.feel, history.flatMap((x) => x.laps ?? [])) : null;
+  const rpeDay = date >= RPE_SINCE;
+  const analysis = run ? analyzeRun(plan, run, rpeDay ? day.status?.feel ?? null : undefined, history.flatMap((x) => x.laps ?? [])) : null;
   const canEdit = date >= today && plan.type !== "race" && day.activities.length === 0;
   const overridden = !!overrides[date];
   const canAnswer = plan.type !== "rest" && !day.status && date <= today;
@@ -126,12 +127,12 @@ export default async function DayPage({ params, searchParams }: { params: Promis
         );
       })}
 
-      {analysis && <AnalysisCard a={analysis} lang={lang} date={date} rpeMissing={!day.status?.feel && day.status?.status !== "skipped" && !canAnswer} />}
+      {analysis && <AnalysisCard a={analysis} lang={lang} date={date} rpeMissing={rpeDay && !day.status?.feel && day.status?.status !== "skipped" && !canAnswer} />}
 
       {day.status && (
         <div className="card">
           <b>{day.status.status === "done" ? `✓ ${t("done")}` : `✗ ${t("skipped")} · ${t(`reason_${day.status.reason ?? "time"}` as "reason_time")}`}</b>
-          {day.status.feel ? <span className="muted"> · {t("feel")}: {day.status.feel}/10</span> : null}
+          {day.status.feel ? <span className="muted"> · {rpeDay ? t("feel") : he ? "תחושה" : "Feel"}: {day.status.feel}/10</span> : null}
           {day.status.note && <p style={{ margin: "6px 0 0" }}>{day.status.note}</p>}
         </div>
       )}

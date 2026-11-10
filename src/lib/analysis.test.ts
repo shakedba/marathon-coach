@@ -33,7 +33,7 @@ describe("post-run analysis", () => {
   });
 
   it("Tue 10 Nov: MP on target, but the 'easy' cool-down ran fast", () => {
-    const a = analyzeRun(planFor("2026-11-10", {}), act("2026-11-10", TUE_10));
+    const a = analyzeRun(planFor("2026-11-10", {}), act("2026-11-10", TUE_10), null);
     const segs = a.segments.map((s) => [s.label.en, s.km, s.verdict]);
     expect(segs).toEqual([["Warm-up", 2, "ok"], ["Marathon pace", 6, "ok"], ["Cool-down", 4, "ok"]]);
     const cd = a.findings.find((f) => f.level === "warn")!;
@@ -93,5 +93,32 @@ describe("lap targets", () => {
   it("no false HR alarm in a cool-down after fast running (baseline check skipped)", () => {
     const a = analyzeRun(planFor("2026-11-10", {}), act("2026-11-10", TUE_10), null, MON_9);
     expect(a.hr.reasons.join(" ")).not.toMatch(/usual/);
+  });
+});
+
+describe("review fixes", () => {
+  it("multi-part workout without laps: no per-part verdicts (no misleading 'MP slower than planned')", () => {
+    const a = analyzeRun(planFor("2026-11-10", {}), { ...act("2026-11-10", TUE_10), laps: null }, null);
+    expect(a.segments).toEqual([]);
+    expect(a.findings[0].text.en).toMatch(/No lap data/);
+    expect(a.findings.some((f) => f.level === "warn" || f.level === "good")).toBe(false);
+  });
+  it("a fast block inside an easy-type day is a quality part ('6 km easy incl. 2 km @ MP')", () => {
+    const laps = L([[345, 0], [340, 0], [309, 0], [308, 0], [338, 0], [342, 0]]);
+    const segs = segmentize(planFor("2026-11-17", {}), laps);
+    expect(segs.map((s) => [s.label.en, s.role, s.verdict])).toEqual([["Warm-up", "easy", "ok"], ["Marathon pace", "quality", "ok"], ["Cool-down", "easy", "ok"]]);
+  });
+  it("legacy days (rpe undefined) neither use nor ask for an effort rating", () => {
+    const a = analyzeRun(planFor("2026-11-09", {}), act("2026-11-09", MON_9), undefined);
+    expect(a.srpe).toBeNull();
+    expect(a.findings.some((f) => f.source === "srpe" && f.text.en.match(/Rate the effort|Session load|Effort/))).toBe(false);
+  });
+  it("mainRun ignores non-running activities (e.g. a Strava walk or strength session)", async () => {
+    const { mainRun } = await import("./analysis");
+    const walk = { ...act("2026-11-09", MON_9), id: "strava:1", source: "strava" as const, sport: "Walk", distanceM: 20000 };
+    const str = { ...act("2026-11-09", MON_9), id: "garmin:2", sport: "strength_training", distanceM: 0 };
+    const run = act("2026-11-09", MON_9);
+    expect(mainRun([walk, str, run])?.id).toBe(run.id);
+    expect(mainRun([walk, str])).toBeUndefined();
   });
 });

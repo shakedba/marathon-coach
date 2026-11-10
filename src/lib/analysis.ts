@@ -9,6 +9,8 @@ import type { Activity, Lap, PaceRange, Step, Text, Workout } from "./types";
 
 const t = (en: string, he: string): Text => ({ en, he });
 export const HR_MAX = 187; // athlete-reported
+/** Effort ratings before this date were "feel" (direction unclear), so they are not used as RPE. */
+export const RPE_SINCE = "2026-11-10";
 const TOL = 5; // s/km grace either side of a planned range
 const MIN_LAP_M = 300;
 
@@ -65,8 +67,15 @@ function labelFor(w: Workout, s: FlatStep): { label: Text; role: Segment["role"]
     case "long": return { label: w.steps && w.steps.length > 1 ? t("Marathon pace", "קצב מרתון") : t("Long run", "ריצה ארוכה"), role: w.steps && w.steps.length > 1 ? "quality" : "easy" };
     case "tempo": return { label: t("Tempo", "טמפו"), role: "quality" };
     case "fast": return { label: t("Fast", "מהיר"), role: "quality" };
-    case "medium": return { label: t("Medium", "בינוני"), role: "easy" };
-    default: return { label: t("Easy", "קל"), role: QUALITY_TYPES.has(w.type) ? "quality" : "easy" };
+    case "medium": return { label: t("Medium", "בינוני"), role: "quality" };
+    default: {
+      // A fast block inside an easy-type day (e.g. "6 km easy incl. 2 km @ MP") is still a quality part.
+      if (s.pace && s.pace[1] <= 315) {
+        const mid = (s.pace[0] + s.pace[1]) / 2;
+        return { label: Math.abs(mid - 310) <= 5 ? t("Marathon pace", "קצב מרתון") : t("Fast", "מהיר"), role: "quality" };
+      }
+      return { label: t("Easy", "קל"), role: QUALITY_TYPES.has(w.type) ? "quality" : "easy" };
+    }
   }
 }
 
@@ -151,10 +160,17 @@ export function hrQuality(laps: Lap[], baseline: Lap[] = [], easyPaceFloor = 320
   return { quality: reasons.length ? "suspect" : "ok", reasons };
 }
 
+/**
+ * @param rpe effort 1-10; null = not rated yet (ask for it); undefined = don't ask (legacy day).
+ */
 export function analyzeRun(w: Workout, a: Activity, rpe?: number | null, baseline: Lap[] = []): Analysis {
-  const laps = a.laps?.length ? a.laps : [{ distanceM: a.distanceM, durationS: a.movingS, avgHr: a.avgHr ?? null }];
-  const segments = segmentize(w, laps);
+  const hasLaps = !!a.laps?.length;
+  const laps = hasLaps ? (a.laps as Lap[]) : [{ distanceM: a.distanceM, durationS: a.movingS, avgHr: a.avgHr ?? null }];
+  const multiPart = (w.steps?.length ?? 0) > 1 || (w.steps ?? []).some((s) => s.kind === "repeat");
   const findings: Finding[] = [];
+  // Without laps a multi-part workout can't be split: judging the whole-run average against one part's target would mislead.
+  const segments = !hasLaps && multiPart ? [] : segmentize(w, laps);
+  if (!hasLaps && multiPart) findings.push({ level: "info", text: t("No lap data for this run - pace per part isn't available.", "אין נתוני הקפות לריצה הזו - אין קצב לפי קטעים.") });
   const minutes = Math.round(a.movingS / 60);
 
   for (const s of segments) {
@@ -197,7 +213,9 @@ export function analyzeRun(w: Workout, a: Activity, rpe?: number | null, baselin
   }
 
   let srpe: number | null = null;
-  if (rpe && rpe >= 1 && rpe <= 10) {
+  if (rpe === undefined) {
+    // legacy day: no effort rating used or requested
+  } else if (rpe && rpe >= 1 && rpe <= 10) {
     srpe = rpe * minutes;
     const easyDay = ["easy", "medium", "rest"].includes(w.type);
     if (easyDay && rpe >= 6) findings.push({ level: "warn", text: t(`Effort ${rpe}/10 on an easy day - easy should feel 3-4/10.`, `מאמץ ${rpe}/10 ביום קל - קל אמור להרגיש 3-4/10.`), source: "srpe" });
@@ -213,5 +231,5 @@ export function analyzeRun(w: Workout, a: Activity, rpe?: number | null, baselin
 
 /** The day's main run (longest running activity), if any. */
 export function mainRun(acts: Activity[]): Activity | undefined {
-  return acts.filter((a) => /run/i.test(a.sport) || a.source === "strava").sort((x, y) => y.distanceM - x.distanceM)[0];
+  return acts.filter((a) => /run/i.test(a.sport)).sort((x, y) => y.distanceM - x.distanceM)[0];
 }

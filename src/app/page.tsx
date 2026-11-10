@@ -74,7 +74,7 @@ export default async function Today() {
 
       {(() => {
         const run = mainRun(day.activities);
-        return run ? <AnalysisCard a={analyzeRun(day.plan, run, day.status?.feel)} lang={lang} date={today} compact /> : null;
+        return run ? <AnalysisCard a={analyzeRun(day.plan, run, day.status?.feel ?? null)} lang={lang} date={today} compact /> : null;
       })()}
 
       {day.plan.type !== "rest" && !day.status && <DayActions date={today} lang={lang} ran={day.activities.length > 0} />}
