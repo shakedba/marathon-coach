@@ -65,15 +65,15 @@ export function SyncStatus({ lastAt, error, lang }: { lastAt: string | null; err
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const when = lastAt ? ago(lastAt, he) : he ? "עוד לא סונכרן" : "never synced";
   return (
-    <button type="button" className="sync" onClick={() => run(true)} disabled={busy} aria-busy={busy || undefined}
-      title={error ?? undefined} aria-label={he ? "סנכרן עכשיו" : "Sync now"}>
-      {busy ? <><span className="spinner" aria-hidden /> {he ? "מסנכרן…" : "Syncing…"}</> : (
-        <>
-          {error && <span className="dot bad" aria-hidden />}
-          {lastAt ? ago(lastAt, he) : he ? "לא סונכרן" : "not synced"} ↻
-        </>
-      )}
+    <button type="button" className={`sync ${error ? "has-error" : ""}`} onClick={() => run(true)} disabled={busy} aria-busy={busy || undefined}
+      aria-label={he ? `סנכרן עכשיו (${error ? "הסנכרון האחרון נכשל" : `עודכן ${when}`})` : `Sync now (${error ? "last sync failed" : `updated ${when}`})`}>
+      <span className="sync-main">
+        {busy ? <span className="spinner" aria-hidden /> : <span aria-hidden>{error ? "⚠️" : "↻"}</span>}
+        {busy ? (he ? "מסנכרן…" : "Syncing…") : he ? "סנכרן" : "Sync"}
+      </span>
+      <span className="sync-sub">{busy ? "Garmin · Strava" : error ? (he ? "נכשל - הקש לניסיון" : "failed - tap to retry") : when}</span>
     </button>
   );
 }
