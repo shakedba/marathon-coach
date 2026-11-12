@@ -2,6 +2,7 @@ import Link from "next/link";
 import { EffortChips } from "@/components/EffortChips";
 import { CoachCard } from "@/components/Insights";
 import { loadInsights } from "@/lib/insights-data";
+import { syncProblem } from "@/lib/sync-errors";
 import { Proposals } from "@/components/Proposals";
 import { Setup } from "@/components/Setup";
 import { SkipInline } from "@/components/SkipInline";
@@ -80,6 +81,16 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
         </div>
         <SyncStatus lastAt={lastSync?.at ?? null} error={lastSync?.errors?.length ? lastSync.errors.join("; ") : undefined} lang={lang} />
       </header>
+
+      {isToday && (() => {
+        const p = syncProblem(lastSync?.errors);
+        return p ? (
+          <div className="banner" role="alert">
+            ⚠️ {pick(lang, p.text)}{" "}
+            {p.reconnect && <Link href="/settings" style={{ color: "inherit", fontWeight: 700 }}>{he ? "להגדרות ›" : "Settings ›"}</Link>}
+          </div>
+        ) : null;
+      })()}
 
       {/* Things that need an answer come first, as one line each */}
       <Proposals items={proposals} lang={lang} />

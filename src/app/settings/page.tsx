@@ -11,6 +11,8 @@ import { getLang } from "@/lib/lang";
 import { headers } from "next/headers";
 import { appOrigin } from "@/lib/origin";
 import { stravaClientId } from "@/lib/strava/client";
+import { syncProblem } from "@/lib/sync-errors";
+import { pick } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -27,10 +29,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   );
   if (!dbConfigured()) return (<><h1>{t("settings")}</h1>{langForm}<Setup /></>);
   const origin = appOrigin(await headers());
-  const [garmin, strava, gh, sh, counts, profile] = await Promise.all([
+  const [garmin, strava, gh, sh, counts, profile, lastSync] = await Promise.all([
     db.kvGet<string>("garmin_tokens"), db.kvGet<string>("strava_tokens"),
     db.kvGet<{ start: number; done: boolean; wellnessBackTo?: string }>("garmin_history"), db.kvGet<{ page: number; done: boolean }>("strava_history"),
     db.activityCount(), db.kvGet<{ displayName: string }>("garmin_profile"),
+    db.kvGet<{ at: string; errors: string[] }>("last_sync"),
   ]);
   return (
     <>
@@ -43,6 +46,20 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <>
             <p className="muted">{profile?.displayName ?? ""} · {gh?.done ? `${t("history")} ✓` : `${t("history")}: ${gh?.start ?? 0}…`} {gh?.wellnessBackTo ? `· ${t("recovery")} ${t("since")} ${gh.wellnessBackTo}` : ""}</p>
             <p className="muted">{t("pushNote")}</p>
+            <p className="muted">
+              {t("lastSync")}: {lastSync ? new Date(lastSync.at).toLocaleString(lang === "he" ? "he-IL" : "en-GB", { timeZone: "Asia/Jerusalem" }) : "—"}
+              {lastSync && !lastSync.errors?.length ? " ✓" : ""}
+            </p>
+            {(() => {
+              const p = syncProblem(lastSync?.errors);
+              return p ? (
+                <div className="banner" role="alert">
+                  ⚠️ {pick(lang, p.text)}
+                  <details><summary className="muted">{lang === "he" ? "פרטים טכניים" : "Technical details"}</summary><code className="ltr" style={{ fontSize: ".8rem", whiteSpace: "pre-wrap" }}>{p.raw}</code></details>
+                  {p.reconnect && <p style={{ margin: "6px 0 0" }}>{lang === "he" ? "לחץ \"נתק Garmin\" ואז התחבר שוב עם האימייל והסיסמה." : "Tap \"Disconnect Garmin\", then connect again with your email and password."}</p>}
+                </div>
+              ) : null;
+            })()}
             <PostButton action="/api/garmin/disconnect" label={lang === "he" ? "נתק Garmin" : "Disconnect Garmin"} pending={lang === "he" ? "מנתק…" : "Disconnecting…"} confirm={lang === "he" ? "לנתק את Garmin? הנתונים שכבר יובאו יישארו." : "Disconnect Garmin? Data already imported stays."} />
           </>
         ) : (

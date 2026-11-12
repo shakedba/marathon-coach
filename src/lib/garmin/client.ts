@@ -240,19 +240,38 @@ export async function verifyMfa(state: MfaState, code: string): Promise<GarminTo
 
 // ---------------- API ----------------
 export class Garmin {
-  /** Set to true when tokens were refreshed and must be persisted. */
+  /** Set to true when tokens were refreshed and not yet persisted (no onRefresh callback). */
   refreshed = false;
-  constructor(public tokens: GarminTokens) {}
+  private refreshing: Promise<void> | null = null;
+
+  /**
+   * @param onRefresh persists refreshed tokens right away. Garmin's DI refresh token rotates: once used, the old one
+   *   is dead, so new tokens must be saved before anything else can fail or time out.
+   */
+  constructor(public tokens: GarminTokens, private onRefresh?: (t: GarminTokens) => Promise<void>) {}
+
+  /** One refresh at a time: parallel calls must not spend the same (single-use) refresh token twice. */
+  private refresh(): Promise<void> {
+    if (!this.refreshing) {
+      this.refreshing = (async () => {
+        this.tokens = await refreshTokens(this.tokens);
+        this.refreshed = true;
+        if (this.onRefresh) {
+          await this.onRefresh(this.tokens);
+          this.refreshed = false;
+        }
+      })().finally(() => { this.refreshing = null; });
+    }
+    return this.refreshing;
+  }
 
   private async bearer() {
-    if (this.tokens.expires_at < Date.now() / 1000 + 120) {
-      this.tokens = await refreshTokens(this.tokens);
-      this.refreshed = true;
-    }
+    if (this.refreshing) await this.refreshing;
+    if (this.tokens.expires_at < Date.now() / 1000 + 120) await this.refresh();
     return `Bearer ${this.tokens.access_token}`;
   }
 
-  async api<T = any>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  async api<T = any>(path: string, init: { method?: string; body?: unknown } = {}, retried = false): Promise<T> {
     const headers = nativeHeaders({ Authorization: await this.bearer(), Accept: "application/json" });
     if (init.body !== undefined) headers["Content-Type"] = "application/json";
     const r = await fetch(`https://connectapi.${DOMAIN}${path}`, {
@@ -261,6 +280,11 @@ export class Garmin {
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
     });
     if (r.status === 204) return null as T;
+    // The access token can be revoked before its expiry: refresh once and retry before giving up.
+    if (r.status === 401 && !retried && this.tokens.refresh_token) {
+      await this.refresh();
+      return this.api<T>(path, init, true);
+    }
     if (r.status === 401) throw new GarminError("Garmin session expired - reconnect Garmin in Settings", 401);
     if (r.status === 429) throw new GarminError("Garmin rate limit - will retry on next sync", 429);
     if (!r.ok) throw new GarminError(`Garmin API ${path.split("?")[0]} -> ${r.status}`, r.status);
