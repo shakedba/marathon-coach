@@ -1,3 +1,4 @@
+import { SyncStatus } from "@/components/SyncStatus";
 import Link from "next/link";
 import { DayActions } from "@/components/DayActions";
 import { Proposals } from "@/components/Proposals";
@@ -20,8 +21,9 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
   const today = todayLocal();
   const { w } = await searchParams;
   const ws = weekStart(w && /^\d{4}-\d{2}-\d{2}$/.test(w) ? w : today);
-  const [{ days, plan, overrides }, proposals, extraStatus] = await Promise.all([
+  const [{ days, plan, overrides }, proposals, extraStatus, lastSync] = await Promise.all([
     loadWeek(ws, today), db.pendingProposals(), db.extraStatusesBetween(ws, addDays(ws, 6)),
+    db.kvGet<{ at: string; errors: string[] }>("last_sync"),
   ]);
   const extras = extrasWeek(ws, overrides);
   const actual = Math.round(days.reduce((s, d) => s + d.actualKm, 0) * 10) / 10;
@@ -34,7 +36,10 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
         <h1 className="ltr" style={{ margin: 0 }}>{ws.split("-").reverse().join("/")}</h1>
         <Link className="btn" href={`/week?w=${addDays(ws, 7)}`}>›</Link>
       </div>
-      <p className="muted">{t("planned")}: {weekKm(plan)} {t("km")} · {t("actual")}: {actual} {t("km")}</p>
+      <div className="spread" style={{ marginBlock: 8 }}>
+        <p className="muted" style={{ margin: 0 }}>{t("planned")}: {weekKm(plan)} {t("km")} · {t("actual")}: {actual} {t("km")}</p>
+        <SyncStatus lastAt={lastSync?.at ?? null} error={lastSync?.errors?.length ? lastSync.errors.join("; ") : undefined} lang={lang} />
+      </div>
       <Proposals items={proposals.filter((p) => p.proposal.weekStart === ws)} lang={lang} />
       <div className="card">
         <table>
