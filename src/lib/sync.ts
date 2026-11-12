@@ -24,7 +24,8 @@ class Deadline {
 
 export async function garminClient(): Promise<Garmin | null> {
   const blob = await db.kvGet<string>("garmin_tokens");
-  return blob ? new Garmin(decrypt<GarminTokens>(blob)) : null;
+  // Refreshed tokens are saved immediately (the refresh token is single-use), not at the end of the sync.
+  return blob ? new Garmin(decrypt<GarminTokens>(blob), (t) => db.kvSet("garmin_tokens", encrypt(t))) : null;
 }
 export async function persistGarmin(g: Garmin) {
   if (g.refreshed) {
@@ -239,6 +240,8 @@ export async function syncAll(opts: { push?: boolean } = {}): Promise<SyncResult
     if (s && dl.ok(5_000)) {
       try { res.strava = await syncStrava(s, dl); } catch (e) { res.errors.push(`strava: ${msg(e)}`); }
     }
+    // Errors go to the Vercel logs too (no secrets: these are our own messages + HTTP statuses).
+    for (const e of res.errors) console.error(`[sync] ${e}`);
     await db.kvSet("last_sync", { at: new Date().toISOString(), errors: res.errors });
     return res;
   } finally {

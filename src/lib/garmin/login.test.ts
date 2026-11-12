@@ -110,3 +110,49 @@ describe("Garmin login (current mobile iOS + DI OAuth2 flow)", () => {
     expect(jwtExp(g.tokens.access_token)).toBe(2_000_000_000);
   });
 });
+
+describe("token refresh robustness", () => {
+  const okJson = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  function fakeFetch(handler: (url: string, init: RequestInit) => Response) {
+    const calls: { url: string; body?: string }[] = [];
+    globalThis.fetch = (async (u: any, init: any = {}) => {
+      calls.push({ url: String(u), body: init.body ? String(init.body) : undefined });
+      return handler(String(u), init);
+    }) as typeof fetch;
+    return calls;
+  }
+
+  it("parallel calls with an expired token refresh only once and persist the new tokens immediately", async () => {
+    let refreshes = 0;
+    const calls = fakeFetch((url) => {
+      if (url.includes("di-oauth2-service")) { refreshes++; return okJson({ access_token: ACCESS, refresh_token: `r${refreshes}`, expires_in: 3600 }); }
+      return okJson({ displayName: "shaked" });
+    });
+    const saved: string[] = [];
+    const g = new Garmin({ access_token: "old", refresh_token: "r0", client_id: "CID", expires_at: 1 }, async (t) => { saved.push(t.refresh_token!); });
+    await Promise.all([g.profile(), g.profile(), g.profile(), g.profile()]);
+    expect(refreshes).toBe(1);
+    expect(saved).toEqual(["r1"]);
+    expect(g.refreshed).toBe(false); // already persisted by the callback
+    expect(calls.filter((c) => c.url.includes("socialProfile")).length).toBe(4);
+  });
+
+  it("a 401 on a not-yet-expired token refreshes once and retries", async () => {
+    let first = true;
+    fakeFetch((url) => {
+      if (url.includes("di-oauth2-service")) return okJson({ access_token: ACCESS, refresh_token: "r9", expires_in: 3600 });
+      if (first) { first = false; return new Response("", { status: 401 }); }
+      return okJson({ displayName: "shaked" });
+    });
+    const saved: string[] = [];
+    const g = new Garmin({ access_token: ACCESS, refresh_token: "r0", client_id: "CID", expires_at: 2_000_000_000 }, async (t) => { saved.push(t.refresh_token!); });
+    expect((await g.profile()).displayName).toBe("shaked");
+    expect(saved).toEqual(["r9"]);
+  });
+
+  it("a second 401 after the retry is reported as an expired session", async () => {
+    fakeFetch((url) => (url.includes("di-oauth2-service") ? okJson({ access_token: ACCESS, refresh_token: "r9", expires_in: 3600 }) : new Response("", { status: 401 })));
+    const g = new Garmin({ access_token: ACCESS, refresh_token: "r0", client_id: "CID", expires_at: 2_000_000_000 });
+    await expect(g.profile()).rejects.toThrow(/session expired/);
+  });
+});

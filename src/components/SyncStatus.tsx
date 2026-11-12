@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { syncNow } from "@/app/actions";
 import { useToast } from "./Toast";
+import { syncProblem } from "@/lib/sync-errors";
 
 const STALE_MS = 3 * 60 * 60 * 1000;
 
@@ -32,8 +33,13 @@ export function SyncStatus({ lastAt, error, lang }: { lastAt: string | null; err
     setBusy(true);
     try {
       const r = await syncNow();
-      if (r && r.ok === false) toast("error", r.message ?? (he ? "הסנכרון נכשל" : "Sync failed"));
-      else if (manual) toast("success", he ? "הסנכרון הושלם" : "Sync complete");
+      if (r && r.ok === false) {
+        const p = syncProblem(r.message ? r.message.split("; ") : []);
+        toast("error", p ? p.text[lang] : he ? "הסנכרון נכשל" : "Sync failed");
+      } else if (r?.message) {
+        // e.g. "another sync is running" (the automatic one started a moment ago)
+        if (manual) toast("info", he ? "סנכרון כבר רץ ברקע - הנתונים יתעדכנו בעוד רגע" : "A sync is already running - data will update in a moment");
+      } else if (manual) toast("success", he ? "הסנכרון הושלם" : "Sync complete");
       router.refresh();
     } catch {
       toast("error", he ? "אין חיבור - ננסה שוב בפתיחה הבאה" : "Offline - will retry next time");
