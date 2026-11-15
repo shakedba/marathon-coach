@@ -5,7 +5,7 @@ import { addDays, todayLocal } from "./dates";
 import { Garmin, type GarminTokens } from "./garmin/client";
 import { mapActivity, mapLaps, mapWellness, toGarminStrength, toGarminWorkout } from "./garmin/mappers";
 import { strengthFor } from "./extras";
-import { planFor } from "./plan";
+import { isRaceDay, planFor } from "./plan";
 import { mapStrava, Strava, type StravaTokens } from "./strava/client";
 import type { Activity } from "./types";
 
@@ -113,7 +113,8 @@ export async function pushWorkouts(g: Garmin, days = 7) {
     const date = addDays(today, i);
     const w = planFor(date, overrides);
     const prev = pushed[date];
-    if (w.type === "rest") {
+    // Rest days and race day get no pushed workout (race day: Garmin course + Pace Pro plan); remove any earlier copy.
+    if (w.type === "rest" || isRaceDay(date)) {
       if (prev) {
         await g.deleteWorkout(prev.workoutId);
         await db.deletePush(date);
