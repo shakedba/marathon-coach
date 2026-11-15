@@ -233,6 +233,11 @@ export function isTaper(date: string): boolean {
   });
 }
 
+/** Race day itself. The Garmin race plan (course + Pace Pro) owns that day, so the app does not push a workout for it. */
+export function isRaceDay(date: string): boolean {
+  return RACES.some((r) => r.date === date);
+}
+
 export function isRaceWeek(date: string): boolean {
   return RACES.some((r) => {
     const d = Date.parse(r.date) - Date.parse(date);
