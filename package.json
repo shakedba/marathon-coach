@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:modern-web": "node scripts/check-modern-web.mjs"
   },
   "dependencies": {
     "next": "^16.4.3",

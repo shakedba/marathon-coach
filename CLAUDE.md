@@ -5,4 +5,5 @@
 - Rebalance rules: `src/lib/rebalance.ts`. Every rule change needs a test in `rebalance.test.ts`.
 - Never store GPS tracks or raw provider payloads. Tokens only via `encrypt()`.
 - Integration tests only run against `TEST_DATABASE_URL` on localhost (they delete all rows).
-- Before pushing: `npm run typecheck && npm test && npx next build`.
+- Before pushing: `npm run typecheck && npm test && npm run check:modern-web && npx next build`.
+- UI work (pages, components, CSS): look the pattern up with the Modern Web Guidance skill first (`npx -y modern-web-guidance@latest search "<pattern>"` → `retrieve "<id>"`). `check:modern-web` catches part of it; a false positive goes in `scripts/modern-web-allowlist.json` with a reason.
