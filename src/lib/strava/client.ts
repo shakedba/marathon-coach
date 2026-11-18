@@ -46,22 +46,46 @@ export class Strava {
     }
     return `Bearer ${this.tokens.access_token}`;
   }
-  async activities(page: number, after?: number): Promise<any[]> {
+  async activities(page: number, after?: number): Promise<StravaActivity[]> {
     const p = new URLSearchParams({ page: String(page), per_page: "100" });
     if (after) p.set("after", String(after));
     const r = await fetch(`https://www.strava.com/api/v3/athlete/activities?${p}`, { headers: { Authorization: await this.bearer() } });
     if (!r.ok) throw new Error(`Strava activities ${r.status}`);
-    return r.json();
+    return parseStravaJson(await r.text());
   }
+}
+
+/** Raw Strava activity (only the fields we read). `id` is 64-bit: keep it a string, never a lossy JS number. */
+export interface StravaActivity { id: string | number; [k: string]: any }
+
+/**
+ * JSON.parse that keeps `id` values as their exact source text. Strava IDs are moving to 64-bit and a JS number
+ * is only exact up to 2^53. The reviver's 3rd argument (`context.source`) needs Node 21+; typed via rest args because
+ * TS lib types don't declare it. Where it is missing the number is kept and `stravaId()` rejects it if unsafe.
+ */
+export function parseStravaJson(text: string): any {
+  return JSON.parse(text, (k: string, v: unknown, ...rest: unknown[]) => {
+    const ctx = rest[0] as { source?: string } | undefined;
+    return k === "id" && typeof v === "number" ? (ctx?.source ?? v) : v;
+  });
+}
+
+/** Exact ID string, or null when it can't be trusted (a number above 2^53 has already lost precision). */
+export function stravaId(id: unknown): string | null {
+  if (typeof id === "string") return /^\d+$/.test(id) ? id : null;
+  return typeof id === "number" && Number.isSafeInteger(id) && id >= 0 ? String(id) : null;
 }
 
 const SPORTS: Record<string, string> = { Run: "running", TrailRun: "trail_running", VirtualRun: "treadmill_running", Walk: "walking", Swim: "swimming", Ride: "cycling" };
 const stravaSport = (t?: string) => (t ? SPORTS[t] ?? t.toLowerCase() : "unknown");
 
-export function mapStrava(a: any): Activity {
+/** Returns null for an activity whose ID can't be trusted, so one bad record never aborts the page. */
+export function mapStrava(a: StravaActivity): Activity | null {
+  const sid = stravaId(a.id);
+  if (!sid) return null;
   const startLocal = String(a.start_date_local ?? "").replace("Z", "").slice(0, 19);
   return {
-    id: `strava:${a.id}`,
+    id: `strava:${sid}`,
     source: "strava",
     startLocal,
     date: startLocal.slice(0, 10),
