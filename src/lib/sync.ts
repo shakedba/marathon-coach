@@ -6,7 +6,7 @@ import { Garmin, type GarminTokens } from "./garmin/client";
 import { mapActivity, mapLaps, mapWellness, toGarminStrength, toGarminWorkout } from "./garmin/mappers";
 import { strengthFor } from "./extras";
 import { isRaceDay, planFor } from "./plan";
-import { mapStrava, Strava, type StravaTokens } from "./strava/client";
+import { mapStrava, Strava, type StravaActivity, type StravaTokens } from "./strava/client";
 import type { Activity } from "./types";
 
 /** Every sync must finish well inside the 60 s function limit. */
@@ -181,8 +181,11 @@ export function isSameRun(a: Activity, b: Activity) {
 export async function syncStrava(s: Strava, dl: Deadline) {
   const state = (await db.kvGet<{ page: number; done: boolean }>("strava_history")) ?? { page: 1, done: false };
   let imported = 0;
-  const handle = async (list: any[]) => {
-    const acts = list.map(mapStrava).filter((a) => a.date);
+  let skipped = 0;
+  const handle = async (list: StravaActivity[]) => {
+    const mapped = list.map(mapStrava);
+    skipped += mapped.filter((a) => !a).length;
+    const acts = mapped.filter((a): a is Activity => !!a && !!a.date);
     if (!acts.length) return;
     const dates = acts.map((a) => a.date).sort();
     const garmin = (await db.activitiesBetween(dates[0], dates[dates.length - 1])).filter((x) => x.source === "garmin");
@@ -205,7 +208,7 @@ export async function syncStrava(s: Strava, dl: Deadline) {
   } finally {
     if (s.refreshed) await db.kvSet("strava_tokens", encrypt(s.tokens));
   }
-  return { imported, historyDone: state.done };
+  return { imported, skipped, historyDone: state.done };
 }
 
 export interface SyncResult {
@@ -239,7 +242,11 @@ export async function syncAll(opts: { push?: boolean } = {}): Promise<SyncResult
     }
     const s = await stravaClient();
     if (s && dl.ok(5_000)) {
-      try { res.strava = await syncStrava(s, dl); } catch (e) { res.errors.push(`strava: ${msg(e)}`); }
+      try {
+        const r = await syncStrava(s, dl);
+        res.strava = r;
+        if (r.skipped) res.errors.push(`strava: skipped ${r.skipped} activities with unsafe ids`);
+      } catch (e) { res.errors.push(`strava: ${msg(e)}`); }
     }
     // Errors go to the Vercel logs too (no secrets: these are our own messages + HTTP statuses).
     for (const e of res.errors) console.error(`[sync] ${e}`);
