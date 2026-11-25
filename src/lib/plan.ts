@@ -185,16 +185,17 @@ export const HAIFA_PLAN: Workout[] = haifaWeeks.flat();
 
 /** Tel Aviv 2027 outline (day-level plan is written after Haifa). */
 export const TLV_OUTLINE: { weekStart: string; phase: Text; km: number; key: Text }[] = [
-  { weekStart: "2026-11-23", phase: t("Recovery", "התאוששות"), km: 15, key: t("No running until Tue, then 3×25-40 min easy", "בלי ריצה עד שלישי, אז 3×25-40 דק' קל") },
-  { weekStart: "2026-11-30", phase: t("Recovery", "התאוששות"), km: 35, key: t("Easy only, 4 runs", "רק קל, 4 ריצות") },
+  // Updated 25 Nov 2026 (approved): after Haifa (3:44:20, faded from km 35). Recovery went well (4 + 6 km easy Tue-Wed).
+  { weekStart: "2026-11-23", phase: t("Recovery", "התאוששות"), km: 20, key: t("Easy only, 3-4 short runs", "רק קל, 3-4 ריצות קצרות") },
+  { weekStart: "2026-11-30", phase: t("Recovery", "התאוששות"), km: 38, key: t("Easy only, 4 runs, strides at the end of the week", "רק קל, 4 ריצות, האצות בסוף השבוע") },
   { weekStart: "2026-12-07", phase: t("Return", "חזרה"), km: 45, key: t("5 days, strides, long 16", "5 ימים, האצות, ארוכה 16") },
   { weekStart: "2026-12-14", phase: t("Rebuild", "בנייה מחדש"), km: 55, key: t("First intervals, long 20", "אינטרוולים ראשונים, ארוכה 20") },
   { weekStart: "2026-12-21", phase: t("Build", "בנייה"), km: 62, key: t("Tempo, long 24", "טמפו, ארוכה 24") },
-  { weekStart: "2026-12-28", phase: t("Build", "בנייה"), km: 70, key: t("Long intervals, long 26", "אינטרוולים ארוכים, ארוכה 26") },
-  { weekStart: "2027-01-04", phase: t("Build", "בנייה"), km: 75, key: t("MP 14, long 28", "קצב מרתון 14, ארוכה 28") },
+  { weekStart: "2026-12-28", phase: t("Build", "בנייה"), km: 70, key: t("Long intervals, long 26 with last 6 @ MP", "אינטרוולים ארוכים, ארוכה 26 עם 6 אחרונים בקצב מרתון") },
+  { weekStart: "2027-01-04", phase: t("Build", "בנייה"), km: 75, key: t("MP 14, long 28-30", "קצב מרתון 14, ארוכה 28-30") },
   { weekStart: "2027-01-11", phase: t("Cutback", "הורדה"), km: 62, key: t("Long 20", "ארוכה 20") },
-  { weekStart: "2027-01-18", phase: t("Build", "בנייה"), km: 80, key: t("MP 16, long 32", "קצב מרתון 16, ארוכה 32") },
-  { weekStart: "2027-01-25", phase: t("Checkpoint", "נקודת בדיקה"), km: 75, key: t("Tune-up half -> set target", "חצי הכנה -> קביעת יעד") },
+  { weekStart: "2027-01-18", phase: t("Build", "בנייה"), km: 80, key: t("MP 16, long 32 with last 10 @ MP", "קצב מרתון 16, ארוכה 32 עם 10 אחרונים בקצב מרתון") },
+  { weekStart: "2027-01-25", phase: t("Checkpoint", "נקודת בדיקה"), km: 75, key: t("Tune-up half, even pacing -> set target", "חצי הכנה בפריסה שווה -> קביעת יעד") },
   { weekStart: "2027-02-01", phase: t("Peak", "שיא"), km: 88, key: t("Long 34-35 with MP finish", "ארוכה 34-35 עם סיום בקצב מרתון") },
   { weekStart: "2027-02-08", phase: t("Taper", "טייפר"), km: 65, key: t("Long 24", "ארוכה 24") },
   { weekStart: "2027-02-15", phase: t("Taper", "טייפר"), km: 50, key: t("Long 14", "ארוכה 14") },
