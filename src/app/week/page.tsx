@@ -55,7 +55,7 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
                     <div className="muted">
                       {extras[d.date].map((x) => {
                         const st = extraStatus[`${d.date}:${x.kind}`];
-                        return <span key={x.kind} style={{ marginInlineEnd: 8 }}>{x.kind === "strength" ? "💪" : "🧘"} {x.kind === "strength" ? pick(lang, x.title) : t("mobility")}{st === "done" ? " ✓" : st === "skipped" ? " ✗" : ""}</span>;
+                        return <span key={x.kind} style={{ marginInlineEnd: 8 }}>{x.kind === "strength" ? "💪" : "🧘"} {x.kind === "strength" ? `${pick(lang, x.title)} / TRX` : t("mobility")}{st === "done" ? " ✓" : st === "skipped" ? " ✗" : ""}</span>;
                       })}
                     </div>
                   )}

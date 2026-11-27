@@ -1,9 +1,10 @@
 /**
  * TRX mini app: exercises (animated figure + how-to), sessions and the interval timeline.
- * Suggested doses follow the Tel Aviv outline phases; the approved strength schedule
- * in extras.ts is unchanged (TRX is not scheduled into plan days yet).
+ * TRX is offered as an alternative on each planned strength day (see trxAlternative);
+ * the schedule itself stays in extras.ts.
  */
 import { diffDays, weekStart } from "./dates";
+import type { Extra } from "./extras";
 import { RACES, TLV_OUTLINE } from "./plan";
 import type { Rig } from "./trx-figure";
 import type { Text } from "./types";
@@ -345,3 +346,25 @@ export function adviceFor(date: string): Advice {
   if (week) return { session: "full", perWeek: 2, rounds: 3, why: t(`${week.phase.en} week: full body twice, after easy runs.`, `שבוע ${week.phase.he}: כל הגוף פעמיים, אחרי ריצות קלות.`) };
   return { session: "full", perWeek: 2, rounds: 2, why: t("Twice a week after easy runs.", "פעמיים בשבוע אחרי ריצות קלות.") };
 }
+
+// ---------- TRX as an alternative to a planned strength session (approved 27 Nov 2026) ----------
+
+export interface TrxAlt {
+  session: Session["id"];
+  rounds: number;
+}
+
+/**
+ * The TRX workout that can replace a planned strength session (same day, same dose class):
+ * A (bodyweight) -> light, C (core & hips, no leg fatigue) -> upper body + core,
+ * B (dumbbells) -> full body (2 rounds in cutback / taper weeks).
+ */
+export function trxAlternative(x: Pick<Extra, "kind" | "id" | "date" | "rounds">): TrxAlt | null {
+  if (x.kind !== "strength") return null;
+  if (x.id === "C") return { session: "upper", rounds: 2 };
+  if (x.id === "A" || x.id === "A1") return { session: "light", rounds: x.id === "A1" ? 1 : 2 };
+  const a = adviceFor(x.date);
+  return { session: "full", rounds: a.session === "light" ? 2 : a.rounds || 3 };
+}
+
+export const trxHref = (date: string, alt: TrxAlt) => `/trx?s=${alt.session}&r=${alt.rounds}&d=${date}`;

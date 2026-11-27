@@ -17,12 +17,14 @@ const AREA: Record<string, Text> = {
 
 type View = { v: "home" } | { v: "ex"; id: string } | { v: "play"; session: Session };
 
-export function TrxApp({ lang, advice }: { lang: Lang; advice: Advice }) {
+export interface Replaces { date: string; title: string; today: boolean }
+
+export function TrxApp({ lang, advice, initial, replaces }: { lang: Lang; advice: Advice; initial: { session: Session["id"]; rounds: number } | null; replaces: Replaces | null }) {
   const he = lang === "he";
   const L = (x: Text) => pick(lang, x);
   const [view, setView] = useState<View>({ v: "home" });
-  const [set, setSet] = useState<Settings>({ ...DEFAULTS, rounds: advice.rounds || 2 });
-  const [sessionId, setSessionId] = useState<Session["id"]>(advice.session ?? "full");
+  const [set, setSet] = useState<Settings>({ ...DEFAULTS, rounds: initial?.rounds ?? (advice.rounds || 2) });
+  const [sessionId, setSessionId] = useState<Session["id"]>(initial?.session ?? advice.session ?? "full");
 
   // Remembered work/rest choice (per browser; best effort).
   useEffect(() => {
@@ -42,7 +44,7 @@ export function TrxApp({ lang, advice }: { lang: Lang; advice: Advice }) {
   const session = SESSIONS.find((s) => s.id === sessionId)!;
   const minutes = useMemo(() => Math.round(totalSec(timeline(session, set)) / 60), [session, set]);
 
-  if (view.v === "play") return <TrxPlayer lang={lang} session={view.session} settings={set} onExit={() => setView({ v: "home" })} />;
+  if (view.v === "play") return <TrxPlayer lang={lang} session={view.session} settings={set} replaces={replaces} onExit={() => setView({ v: "home" })} />;
 
   if (view.v === "ex") {
     const e = TRX[view.id];
@@ -64,6 +66,15 @@ export function TrxApp({ lang, advice }: { lang: Lang; advice: Advice }) {
       </div>
       <h1>TRX</h1>
 
+      {replaces && (
+        <div className="card trx-replaces">
+          <b>{he ? "במקום: " : "Instead of: "}{replaces.title}</b>
+          <p className="muted" style={{ margin: "4px 0 0" }}>
+            {replaces.today ? (he ? "האימון של היום. " : "Today's session. ") : (he ? `האימון של ${replaces.date.slice(8)}/${replaces.date.slice(5, 7)}. ` : `Session of ${replaces.date}. `)}
+            {he ? "בסוף האימון אפשר לסמן אותו כבוצע." : "Mark it done at the end."}
+          </p>
+        </div>
+      )}
       <div className="card">
         <b>{he ? "השבוע" : "This week"}</b>
         <p style={{ margin: "4px 0 0" }}>
@@ -73,7 +84,7 @@ export function TrxApp({ lang, advice }: { lang: Lang; advice: Advice }) {
         </p>
         <p className="muted" style={{ margin: "4px 0 0" }}>{L(advice.why)}</p>
         <p className="muted" style={{ margin: "4px 0 0" }}>
-          {he ? "אחרי ריצה קלה, לא יום לפני אימון איכות או ארוכה. לסיים בתחושה שיכולת עוד." : "After an easy run, not the day before a quality or long run. Finish feeling you could do more."}
+          {he ? "במקום אימון הכוח שבתוכנית (לא בנוסף). לסיים בתחושה שיכולת עוד." : "Instead of the planned strength session, not on top of it. Finish feeling you could do more."}
         </p>
       </div>
 

@@ -100,3 +100,42 @@ describe("weekly advice follows the Tel Aviv outline", () => {
     for (let d = addDays("2027-02-26", -9); d <= "2027-02-26"; d = addDays(d, 1)) expect(adviceFor(d).session).toBeNull();
   });
 });
+
+describe("TRX as an alternative to planned strength", () => {
+  it("every planned strength day from now to Tel Aviv offers a TRX alternative of the right kind", async () => {
+    const { strengthFor } = await import("./extras");
+    const { trxAlternative } = await import("./trx");
+    let n = 0;
+    for (let d = "2026-11-30"; d <= "2027-02-26"; d = addDays(d, 1)) {
+      const x = strengthFor(d);
+      if (!x) continue;
+      n++;
+      const alt = trxAlternative(x)!;
+      expect(alt, d).not.toBeNull();
+      if (x.id === "C") expect(alt.session).toBe("upper"); // C must not fatigue the legs
+      if (x.id.startsWith("A")) expect(alt.session).toBe("light");
+      if (x.id.startsWith("B")) expect(alt.session).toBe("full");
+      expect(alt.rounds).toBeGreaterThanOrEqual(1);
+      expect(alt.rounds).toBeLessThanOrEqual(3);
+    }
+    expect(n).toBeGreaterThan(20);
+  });
+
+  it("B in a taper week gets the shorter full-body version", async () => {
+    const { strengthFor } = await import("./extras");
+    const { trxAlternative } = await import("./trx");
+    expect(trxAlternative(strengthFor("2027-02-09")!)).toEqual({ session: "full", rounds: 2 });
+    expect(trxAlternative(strengthFor("2026-12-22")!)).toEqual({ session: "full", rounds: 3 });
+  });
+
+  it("no scheduled exercise needs a mini band (the athlete has none)", async () => {
+    const { strengthFor } = await import("./extras");
+    const { GUIDE } = await import("./exercise-guide");
+    for (let d = "2026-11-30"; d <= "2027-02-26"; d = addDays(d, 1)) {
+      for (const e of strengthFor(d)?.exercises ?? []) {
+        expect(GUIDE[e.id].fig.band, e.id).toBeUndefined();
+        expect(e.name.en.replace("(no band)", ""), e.id).not.toMatch(/\bband\b/i);
+      }
+    }
+  });
+});

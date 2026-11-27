@@ -3,7 +3,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pick } from "@/lib/i18n";
 import { TRX, timeline, totalSec, type Block, type Session, type Settings } from "@/lib/trx";
 import type { Lang } from "@/lib/types";
+import { markExtra } from "@/app/actions";
+import { tr } from "@/lib/i18n";
+import { ActionForm, SubmitButton } from "../ActionForm";
 import { ExerciseCard } from "./ExerciseCard";
+import type { Replaces } from "./TrxApp";
 
 let sharedAudio: AudioContext | null = null;
 
@@ -21,7 +25,7 @@ export function unlockAudio() {
  * throttled tab doesn't make it drift. Beeps for the last 3 s, a voice cue
  * for what comes next, and the screen stays on while it runs.
  */
-export function TrxPlayer({ lang, session, settings, onExit }: { lang: Lang; session: Session; settings: Settings; onExit: () => void }) {
+export function TrxPlayer({ lang, session, settings, replaces, onExit }: { lang: Lang; session: Session; settings: Settings; replaces: Replaces | null; onExit: () => void }) {
   const he = lang === "he";
   const blocks = useMemo(() => timeline(session, settings), [session, settings]);
   const [i, setI] = useState(0);
@@ -137,8 +141,15 @@ export function TrxPlayer({ lang, session, settings, onExit }: { lang: Lang; ses
         <div className="trx-big">🎉</div>
         <h1>{he ? "סיימת!" : "Done!"}</h1>
         <p>{he ? `${session.rounds} סבבים, ${Math.round(total / 60)} דקות.` : `${session.rounds} rounds, ${Math.round(total / 60)} min.`}</p>
-        <p className="muted">{he ? "עכשיו 5 דקות גמישות, ולסמן את האימון ביומן." : "Now 5 min of mobility, and mark the session in the log."}</p>
-        <button className="primary" onClick={onExit}>{he ? "חזרה" : "Back"}</button>
+        <p className="muted">{he ? "עכשיו 5 דקות גמישות." : "Now 5 min of mobility."}</p>
+        {replaces && (
+          <ActionForm action={markExtra} success={tr(lang)("fb_done")} error={tr(lang)("fb_failed")} redirectTo={`/day/${replaces.date}`} className="row" style={{ justifyContent: "center", margin: "12px 0" }}>
+            <input type="hidden" name="date" value={replaces.date} />
+            <input type="hidden" name="kind" value="strength" />
+            <SubmitButton primary name="status" value="done">{he ? `סמן "${replaces.title}" כבוצע` : `Mark "${replaces.title}" done`}</SubmitButton>
+          </ActionForm>
+        )}
+        <button className={replaces ? "" : "primary"} onClick={onExit}>{he ? "חזרה" : "Back"}</button>
       </div>
     );
   }

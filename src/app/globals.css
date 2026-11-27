@@ -213,3 +213,8 @@ button.link, a.link { background: none; border: 0; padding: 6px 0; color: var(--
 .trx-ctrl button { padding: 14px 8px; font-size: 1.1rem; }
 .trx-play.done { text-align: center; padding-top: 40px; }
 .trx-big { font-size: 4rem; }
+.trx-alt { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 12px; color: inherit; text-decoration: none; background: var(--soft); }
+.trx-alt .tx { flex: 1; } .trx-alt .tx b { display: block; color: var(--accent); }
+.trx-alt .chev { color: var(--muted); }
+[dir="rtl"] .trx-alt .chev { transform: scaleX(-1); }
+.trx-replaces { border-color: var(--accent); }

@@ -103,16 +103,16 @@ export const GUIDE: Record<string, Guide> = {
     fig: { head: [28, 82], body: ["36,86 78,86", "42,84 42,58", "42,84 18,70", "78,86 78,64 100,64", "78,86 128,80"], arrow: "M136 70 L136 84" },
   },
   clamshell: {
-    name: t("Clamshell with band", "Clamshell עם גומייה"),
+    name: t("Clamshell (no band)", "Clamshell (בלי גומייה)"),
     target: t("Glute medius (knee and hip control)", "ישבן אמצעי (שליטה בברך ובאגן)"),
     steps: [
-      t("Lie on your side, band just above the knees, knees bent ~45°, heels together.", "לשכב על הצד, גומייה מעל הברכיים, ברכיים כפופות ~45°, עקבים צמודים."),
+      t("Lie on your side, knees bent ~45°, heels together, head on your arm.", "לשכב על הצד, ברכיים כפופות ~45°, עקבים צמודים, ראש על היד."),
       t("Keeping the feet together, open the top knee like a clamshell.", "בלי להפריד את כפות הרגליים, לפתוח את הברך העליונה כמו צדפה."),
-      t("Pause, close slowly.", "עצירה קצרה, לסגור לאט."),
+      t("Hold 2 s at the top, close over 2 s. Without a band the slow tempo and the pause make it work.", "להחזיק 2 שנ' למעלה ולסגור ב-2 שנ'. בלי גומייה, הקצב האיטי והעצירה הם מה שעושה את העבודה."),
     ],
-    cue: t("Hips stacked; don't roll backward.", "האגן מאונך לרצפה; לא להתגלגל אחורה."),
+    cue: t("Hips stacked; you should feel it at the side of the hip, not the front of the thigh.", "האגן מאונך לרצפה; להרגיש בצד הירך, לא בחלק הקדמי."),
     mistake: t("Rolling the pelvis back to fake the range.", "גלגול האגן אחורה כדי 'להרוויח' טווח."),
-    fig: { head: [24, 76], body: ["32,82 76,84", "76,84 100,88 82,91", "76,84 98,66 82,89", "30,80 46,72"], band: "98,70 100,86", arrow: "M108 82 Q112 70 104 62" },
+    fig: { head: [24, 76], body: ["32,82 76,84", "76,84 100,88 82,91", "76,84 98,66 82,89", "30,80 46,72"], arrow: "M108 82 Q112 70 104 62" },
   },
   "bird-dog": {
     name: t("Bird dog", "Bird dog"),
@@ -126,17 +126,17 @@ export const GUIDE: Record<string, Guide> = {
     mistake: t("Twisting the hips or lifting the leg too high.", "סיבוב האגן או הרמת הרגל גבוה מדי."),
     fig: { head: [37, 60], body: ["45,66 95,66", "45,66 45,92", "95,66 95,92 118,92", "45,66 15,61", "95,66 140,64"] },
   },
-  "monster-walk": {
-    name: t("Band monster walk", "הליכת מפלצת עם גומייה"),
+  "side-leg-raise": {
+    name: t("Side-lying leg raise", "הרמת רגל בשכיבה על הצד"),
     target: t("Glute medius, hip stability", "ישבן אמצעי, יציבות אגן"),
     steps: [
-      t("Band around the ankles (or above the knees), feet hip-width.", "גומייה סביב הקרסוליים (או מעל הברכיים), רגליים ברוחב האגן."),
-      t("Quarter squat, chest up.", "חצי-רבע סקוואט, חזה פתוח."),
-      t("Step sideways keeping tension on the band; then step back the other way.", "צעדים לצד תוך שמירה על מתח בגומייה; ואז חזרה לכיוון השני."),
+      t("Lie on your side in a straight line, bottom knee slightly bent, head on your arm.", "לשכב על הצד בקו ישר, ברך תחתונה מעט כפופה, ראש על היד."),
+      t("Toes of the top leg point forward (not up). Lift the straight leg to about 45°.", "אצבעות הרגל העליונה מכוונות קדימה (לא לתקרה). להרים את הרגל הישרה לכ-45°."),
+      t("Hold 1 s, lower over 3 s without resting the leg.", "להחזיק שנייה, לרדת ב-3 שנ' בלי להניח את הרגל."),
     ],
-    cue: t("Feet never come together; stay low.", "הרגליים לא נפגשות; להישאר נמוך."),
-    mistake: t("Standing up straight; dragging the trailing foot.", "להזדקף; לגרור את הרגל האחורית."),
-    fig: { head: [80, 34], body: ["80,41 79,62", "79,62 68,76 64,92", "79,62 90,76 96,92", "80,46 70,58", "80,46 90,58"], band: "66,86 94,86", arrow: "M110 70 L136 70" },
+    cue: t("Lead with the heel, leg slightly behind the body line.", "העקב מוביל, הרגל מעט מאחורי קו הגוף."),
+    mistake: t("Rolling back and lifting with the front of the hip.", "להתגלגל אחורה ולהרים עם קדמת הירך."),
+    fig: { head: [20, 76], body: ["28,82 74,86", "74,87 138,89", "74,85 134,64", "26,80 34,70"], arrow: "M144 84 L140 64" },
   },
   bulgarian: {
     name: t("Bulgarian split squat", "סקוואט בולגרי"),
@@ -187,10 +187,10 @@ export const GUIDE: Record<string, Guide> = {
     fig: { head: [36, 62], body: ["44,68 82,68", "82,68 104,66 104,92", "46,70 70,64"], bench: [20, 70, 26, 22], db: [[80, 63]], arrow: "M82 90 L82 76" },
   },
   "pull-up": {
-    name: t("Pull-up (band-assisted)", "מתח (בעזרת גומייה)"),
+    name: t("Pull-up", "מתח"),
     target: t("Back, arms, posture (helps arm swing late in the race)", "גב, ידיים, יציבה (עוזר לתנופת הידיים בסוף המרוץ)"),
     steps: [
-      t("Hang from the bar, hands shoulder-width. Loop a band over the bar and under a knee/foot if needed.", "תלייה מהמוט, ידיים ברוחב הכתפיים. אם צריך: גומייה סביב המוט ומתחת לברך/כף הרגל."),
+      t("Hang from the bar, hands shoulder-width. Can't do 3 yet? Jump to the top and lower over 4-5 s (negatives).", "תלייה מהמוט, ידיים ברוחב הכתפיים. עוד לא 3 חזרות? לקפוץ למעלה ולרדת לאט ב-4-5 שנ' (שליליות)."),
       t("Pull the shoulder blades down, then pull until the chin passes the bar.", "למשוך את השכמות למטה ואז למשוך עד שהסנטר מעל המוט."),
       t("Lower slowly to full hang.", "לרדת לאט עד תלייה מלאה."),
     ],

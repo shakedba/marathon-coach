@@ -1,6 +1,7 @@
 /**
  * Strength & mobility program (approved 1 Nov 2026).
- * Equipment: dumbbells, pull-up bar, resistance band.
+ * Equipment: dumbbells, pull-up bar, TRX straps. No mini band (27 Nov 2026): clamshell is done without one,
+ * the band monster walk became a side-lying leg raise. TRX is an alternative to any strength session (trx.ts).
  *
  * Phase 1 (to Haifa): low dose, bodyweight only (squats/lunges OK per athlete, 1 Nov; no added weight in the taper).
  * Phase 2 (recovery): habit, still light.
@@ -47,7 +48,7 @@ const A_EXERCISES: Exercise[] = [
   ex("calf-raise", "Slow calf raises: straight + bent knee", "הרמות עקב איטיות: ישרה + ברך כפופה", "15 + 15", "15 + 15"),
   ex("side-plank", "Side plank", "פלאנק צד", "30 s each side", "30 שנ' לכל צד"),
   ex("dead-bug", "Dead bug", "Dead bug", "8 each side", "8 לכל צד"),
-  ex("clamshell", "Clamshell with band", "Clamshell עם גומייה", "12 each side", "12 לכל צד"),
+  ex("clamshell", "Clamshell, slow, 2 s hold (no band)", "Clamshell איטי, עצירה 2 שנ' (בלי גומייה)", "15 each side", "15 לכל צד"),
   ex("bird-dog", "Bird dog", "Bird dog", "8 each side", "8 לכל צד"),
 ];
 
@@ -55,7 +56,7 @@ const C_EXERCISES: Exercise[] = [
   ex("glute-bridge", "Glute bridge", "גשר ישבן", "12", "12"),
   ex("side-plank", "Side plank", "פלאנק צד", "30 s each side", "30 שנ' לכל צד"),
   ex("dead-bug", "Dead bug", "Dead bug", "8 each side", "8 לכל צד"),
-  ex("monster-walk", "Band monster walk", "הליכת מפלצת עם גומייה", "10 steps each way", "10 צעדים לכל כיוון"),
+  ex("side-leg-raise", "Side-lying leg raise", "הרמת רגל בשכיבה על הצד", "12 each side", "12 לכל צד"),
   ex("bird-dog", "Bird dog", "Bird dog", "8 each side", "8 לכל צד"),
 ];
 
@@ -65,7 +66,7 @@ const B_EXERCISES: Exercise[] = [
   ex("sl-rdl", "Single-leg Romanian deadlift, dumbbell", "דדליפט רומני על רגל אחת עם משקולת", "3 × 8 each leg", "3 × 8 לכל רגל"),
   ex("hip-thrust", "Hip thrust (dumbbell on hips)", "היפ תראסט (משקולת על האגן)", "3 × 10", "3 × 10"),
   ex("calf-raise", "Single-leg calf raise holding a dumbbell", "הרמת עקב על רגל אחת עם משקולת", "3 × 12 each leg", "3 × 12 לכל רגל"),
-  ex("pull-up", "Pull-ups (band-assisted if needed)", "מתח (בעזרת גומייה אם צריך)", "3 × max-2", "3 × מקסימום פחות 2"),
+  ex("pull-up", "Pull-ups (slow negatives if needed)", "מתח (ירידות איטיות אם צריך)", "3 × max-2", "3 × מקסימום פחות 2"),
   ex("copenhagen", "Copenhagen plank (short lever)", "Copenhagen plank (גרסה קצרה)", "3 × 20 s each side", "3 × 20 שנ' לכל צד"),
 ];
 
