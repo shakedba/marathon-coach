@@ -239,7 +239,7 @@ export const TRX: Record<string, TrxExercise> = {
 // ---------- sessions ----------
 
 export interface Session {
-  id: "full" | "light" | "upper";
+  id: "full" | "light" | "upper" | "custom";
   name: Text;
   sub: Text;
   exercises: string[];
@@ -272,6 +272,20 @@ export const SESSIONS: Session[] = [
 
 export const sessionById = (id: string) => SESSIONS.find((s) => s.id === id);
 
+/** The athlete's own pick from the exercise library (order kept, unknown or repeated ids dropped). */
+export function customSession(ids: unknown, rounds = 2): Session {
+  const list = Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string" && x in TRX) : [];
+  return {
+    id: "custom",
+    name: t("My workout", "האימון שלי"),
+    sub: t("Pick exercises from the library and set the order.", "בוחרים תרגילים מהספרייה וקובעים את הסדר."),
+    exercises: [...new Set(list)],
+    rounds,
+  };
+}
+
+export const ROUND_WORD: Text[] = [t("first", "ראשון"), t("second", "שני"), t("third", "שלישי")];
+
 // ---------- timer timeline ----------
 
 export interface Settings {
@@ -298,6 +312,7 @@ export interface Block {
 }
 
 export function timeline(s: Session, set: Settings): Block[] {
+  if (!s.exercises.length) return [];
   const out: Block[] = [{ kind: "prep", sec: PREP, round: 1, ex: s.exercises[0] }];
   for (let r = 1; r <= set.rounds; r++) {
     s.exercises.forEach((id, i) => {
@@ -312,7 +327,7 @@ export function timeline(s: Session, set: Settings): Block[] {
       }
       const last = i === s.exercises.length - 1;
       if (!last) out.push({ kind: "rest", sec: set.rest, round: r, ex: s.exercises[i + 1] });
-      else if (r < set.rounds) out.push({ kind: "round-rest", sec: set.roundRest, round: r, ex: s.exercises[0] });
+      else if (r < set.rounds) out.push({ kind: "round-rest", sec: set.roundRest, round: r + 1, ex: s.exercises[0] });
     });
   }
   return out;

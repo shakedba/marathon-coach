@@ -139,3 +139,26 @@ describe("TRX as an alternative to planned strength", () => {
     }
   });
 });
+
+describe("own workout and rounds", () => {
+  it("custom session keeps the chosen order and drops unknown or repeated ids", async () => {
+    const { customSession } = await import("./trx");
+    const s = customSession(["row", "nope", "squat", "row", 5, "plank"], 3);
+    expect(s).toMatchObject({ id: "custom", exercises: ["row", "squat", "plank"], rounds: 3 });
+    expect(customSession("garbage").exercises).toEqual([]);
+  });
+
+  it("an empty custom workout has no timeline", async () => {
+    const { customSession } = await import("./trx");
+    expect(timeline(customSession([]), DEFAULTS)).toEqual([]);
+  });
+
+  it("round rest names the round that is about to start, and every round has a spoken ordinal", async () => {
+    const { customSession, ROUND_WORD } = await import("./trx");
+    const b = timeline(customSession(["squat", "row"], 3), { ...DEFAULTS, rounds: 3 });
+    const rr = b.filter((x) => x.kind === "round-rest");
+    expect(rr.map((x) => x.round)).toEqual([2, 3]);
+    expect(rr.every((x) => x.ex === "squat")).toBe(true);
+    expect(ROUND_WORD.length).toBeGreaterThanOrEqual(3);
+  });
+});
