@@ -1,5 +1,5 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const THRESHOLD = 70;
@@ -10,7 +10,10 @@ export function PullToRefresh() {
   const pullRef = useRef(0);
   const start = useRef<{ y: number; x: number } | null>(null);
   const router = useRouter();
+  const path = usePathname();
+  const off = path === "/trx" || path.startsWith("/trx/"); // the TRX timer must not reload mid-workout
   useEffect(() => {
+    if (off) return;
     const set = (v: number) => { pullRef.current = v; setPull(v); };
     const down = (e: TouchEvent) => {
       start.current = window.scrollY <= 0 && e.touches.length === 1 ? { y: e.touches[0].clientY, x: e.touches[0].clientX } : null;
@@ -38,7 +41,7 @@ export function PullToRefresh() {
       window.removeEventListener("touchmove", move);
       window.removeEventListener("touchend", up);
     };
-  }, [router]);
+  }, [router, off]);
   if (pull <= 4) return null;
   return (
     <div className="ptr" style={{ height: pull }} aria-hidden>

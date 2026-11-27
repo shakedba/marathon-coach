@@ -10,6 +10,7 @@ export default async function MorePage() {
     { href: "/log", ic: "≡", title: t("log"), sub: he ? "כל הריצות והאימונים שנרשמו" : "All logged runs and sessions" },
     { href: "/races", ic: "⚑", title: t("races"), sub: he ? "חיפה ותל אביב: יעדים ותוכנית מרוץ" : "Haifa & Tel Aviv: targets and race plan" },
     { href: "/exercises", ic: "💪", title: he ? "תרגילי כוח וגמישות" : "Strength & mobility exercises", sub: he ? "איור והסבר לכל תרגיל" : "Drawing and how-to for each exercise" },
+    { href: "/trx", ic: "⏱", title: he ? "אימון TRX" : "TRX workout", sub: he ? "אנימציה לכל תרגיל וטיימר עבודה/מנוחה" : "Animated exercises and a work/rest timer" },
     { href: "/settings", ic: "⚙", title: t("settings"), sub: he ? "Garmin, Strava, שפה, סנכרון, פרטיות" : "Garmin, Strava, language, sync, privacy" },
   ];
   return (

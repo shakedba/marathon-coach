@@ -11,6 +11,7 @@ Hebrew + English, phone-first (installable to the home screen).
 - **Strava (official API)**: backup source; copies of Garmin runs are de-duplicated.
 - **Progress**: weekly volume vs. plan, HR at marathon pace over time, Riegel prediction, recovery table.
 - **Races**: countdowns, Haifa race plan, fueling, race-morning schedule, Tel Aviv outline.
+- **TRX** (`/trx`, More → TRX workout): a separate full-screen mini app with an animated figure for each suspension exercise, three sessions (full body / light / upper body + core), a work/rest interval timer (beeps, voice cue, screen stays on) and the suggested dose for the current Tel Aviv phase. Add it to the home screen from `/trx` for its own icon. Every planned strength day offers it as an alternative (A → light, B → full body, C → upper body + core), and the finish screen marks that day's strength as done.
 
 ## Security and privacy
 - Single-user login (password, httpOnly + Secure + SameSite cookie). 5 failed logins lock the login for 15 min.

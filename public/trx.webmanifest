@@ -1,0 +1,2 @@
+{ "name": "TRX · Marathon Coach", "short_name": "TRX", "start_url": "/trx", "scope": "/trx", "display": "standalone", "background_color": "#12805c", "theme_color": "#12805c",
+  "icons": [{ "src": "/trx-icon.svg", "sizes": "any", "type": "image/svg+xml" }] }

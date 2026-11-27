@@ -1,12 +1,16 @@
 import { markExtra } from "@/app/actions";
 import type { Extra } from "@/lib/extras";
+import Link from "next/link";
 import { pick, tr } from "@/lib/i18n";
+import { SESSIONS, trxAlternative, trxHref } from "@/lib/trx";
 import type { Lang, Text } from "@/lib/types";
 import { ActionForm, SubmitButton } from "./ActionForm";
 import { ExerciseHowTo } from "./ExerciseHowTo";
 
 export function ExtraCard({ x, lang, status, caution }: { x: Extra; lang: Lang; status?: "done" | "skipped"; caution?: Text | null }) {
   const t = tr(lang);
+  const he = lang === "he";
+  const alt = !status ? trxAlternative(x) : null;
   return (
     <div className="card">
       <div className="spread">
@@ -35,6 +39,16 @@ export function ExtraCard({ x, lang, status, caution }: { x: Extra; lang: Lang; 
         <p className="muted" style={{ fontSize: ".82rem", margin: "4px 0 0" }}>{lang === "he" ? "הקש על תרגיל לאיור והסבר" : "Tap an exercise for a drawing and how-to"}</p>
         {x.note && <p className="muted" style={{ marginBottom: 0 }}>{pick(lang, x.note)}</p>}
       </details>
+      {alt && (
+        <Link href={trxHref(x.date, alt)} className="trx-alt">
+          <span aria-hidden>⏱</span>
+          <span className="tx">
+            <b>{he ? "או במקום: אימון TRX" : "Or instead: TRX workout"}</b>
+            <span className="muted">{pick(lang, SESSIONS.find((s) => s.id === alt.session)!.name)} · {alt.rounds} {t("rounds")}</span>
+          </span>
+          <span className="chev" aria-hidden>›</span>
+        </Link>
+      )}
       <ActionForm action={markExtra} success={{ done: t("fb_done"), skipped: t("fb_saved"), clear: t("fb_cleared") }} error={t("fb_failed")} className="row" style={{ marginTop: 10 }}>
         <input type="hidden" name="date" value={x.date} />
         <input type="hidden" name="kind" value={x.kind} />
