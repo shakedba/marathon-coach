@@ -89,6 +89,21 @@ CREATE TABLE IF NOT EXISTS garmin_extra_pushes (
   PRIMARY KEY (date, kind)
 );
 
+-- TRX workouts done in the app (summary + session RPE only)
+CREATE TABLE IF NOT EXISTS trx_log (
+  id serial PRIMARY KEY,
+  date date NOT NULL,
+  session text NOT NULL,               -- full | light | upper | custom
+  exercises integer NOT NULL,
+  rounds integer NOT NULL,
+  work integer NOT NULL,               -- seconds per exercise
+  rest integer NOT NULL,
+  minutes integer NOT NULL,
+  rpe integer,                         -- 1-10, null = not rated
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS trx_log_date ON trx_log (date);
+
 -- Garmin load (derived numbers only, no raw payloads)
 ALTER TABLE activities ADD COLUMN IF NOT EXISTS training_load double precision;
 ALTER TABLE activities ADD COLUMN IF NOT EXISTS aerobic_te double precision;
