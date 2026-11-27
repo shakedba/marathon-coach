@@ -21,7 +21,7 @@ const isOn = (path: string, href: string) =>
 
 export function Tabs({ labels }: { labels: Record<string, string> }) {
   const path = usePathname();
-  if (path === "/login") return null;
+  if (path === "/login" || path === "/trx" || path.startsWith("/trx/")) return null;
   return (
     <nav className="tabs">
       {Object.entries(labels).map(([href, label]) => {
