@@ -60,6 +60,15 @@ d("integration (postgres)", () => {
     await db.deleteAllData();
   });
 
+  it("TRX log roundtrip, newest first; delete-all clears it", async () => {
+    await db.addTrxLog({ date: "2026-12-22", session: "full", exercises: 10, rounds: 3, work: 40, rest: 20, minutes: 31, rpe: 6 });
+    await db.addTrxLog({ date: "2026-12-24", session: "upper", exercises: 6, rounds: 2, work: 40, rest: 20, minutes: 15, rpe: null });
+    const l = await db.recentTrxLogs(5);
+    expect(l.map((x) => [x.date, x.session, x.rpe])).toEqual([["2026-12-24", "upper", null], ["2026-12-22", "full", 6]]);
+    await db.deleteAllData();
+    expect(await db.recentTrxLogs(5)).toEqual([]);
+  });
+
   it("kv + encryption roundtrip", async () => {
     const { encrypt, decrypt } = await import("./crypto");
     await db.kvSet("t", encrypt({ a: 1 }));

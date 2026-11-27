@@ -383,3 +383,47 @@ export function trxAlternative(x: Pick<Extra, "kind" | "id" | "date" | "rounds">
 }
 
 export const trxHref = (date: string, alt: TrxAlt) => `/trx?s=${alt.session}&r=${alt.rounds}&d=${date}`;
+
+// ---------- log + progression ----------
+
+export const WORK_STEPS = [30, 35, 40, 45, 50] as const;
+const SESSION_IDS = new Set(["full", "light", "upper", "custom"]);
+
+export interface LoggedTrx { date: string; session: string; exercises: number; rounds: number; work: number; rest: number; minutes: number; rpe: number | null }
+
+/** Validates a finished-workout payload from the client. Dates can't be in the future or more than 2 weeks back. */
+export function parseTrxLog(input: unknown, today: string): { log: LoggedTrx; markStrength: boolean } | null {
+  if (!input || typeof input !== "object") return null;
+  const o = input as Record<string, unknown>;
+  const int = (v: unknown, lo: number, hi: number) => (Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi ? (v as number) : null);
+  const date = typeof o.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.date) && !Number.isNaN(Date.parse(o.date)) ? o.date : null;
+  if (!date || date > today || diffDays(today, date) > 14) return null;
+  const session = typeof o.session === "string" && SESSION_IDS.has(o.session) ? o.session : null;
+  const exercises = int(o.exercises, 1, 20), rounds = int(o.rounds, 1, 5), work = int(o.work, 10, 120), rest = int(o.rest, 0, 120), minutes = int(o.minutes, 1, 180);
+  const rpe = o.rpe == null ? null : int(o.rpe, 1, 10);
+  if (!session || !exercises || !rounds || !work || rest == null || !minutes || (o.rpe != null && rpe == null)) return null;
+  return { log: { date, session, exercises, rounds, work, rest, minutes, rpe }, markStrength: o.markStrength === true };
+}
+
+export interface Suggestion { work: number; dir: "up" | "down"; why: Text }
+
+/**
+ * Suggest a new work time from the last rated workouts (newest first, last 3 weeks):
+ * two easy ones (RPE <= 5) in a row at the current time -> one step up, but only in a building phase;
+ * a very hard one (RPE >= 8) -> one step down, any phase.
+ */
+export function suggestWork(logs: LoggedTrx[], currentWork: number, today: string): Suggestion | null {
+  const rated = logs.filter((l) => l.rpe != null && diffDays(today, l.date) <= 21);
+  const i = WORK_STEPS.indexOf(currentWork as (typeof WORK_STEPS)[number]);
+  if (!rated.length || i < 0) return null;
+  const last = rated[0];
+  if (last.rpe! >= 8 && i > 0) {
+    return { work: WORK_STEPS[i - 1], dir: "down", why: t(`Last workout felt very hard (${last.rpe}/10): go a step easier.`, `האימון האחרון הרגיש קשה מאוד (${last.rpe}/10): צעד אחד אחורה.`) };
+  }
+  const building = adviceFor(today).session === "full";
+  const easy = rated.slice(0, 2);
+  if (building && easy.length === 2 && easy.every((l) => l.rpe! <= 5 && l.work === currentWork) && i < WORK_STEPS.length - 1) {
+    return { work: WORK_STEPS[i + 1], dir: "up", why: t(`Your last 2 workouts at ${currentWork} s felt easy: ready for ${WORK_STEPS[i + 1]} s.`, `2 האימונים האחרונים ב-${currentWork} שנ' הרגישו קלים: אפשר לעלות ל-${WORK_STEPS[i + 1]} שנ'.`) };
+  }
+  return null;
+}

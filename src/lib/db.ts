@@ -234,10 +234,24 @@ export async function recordLogin(ok: boolean) {
   await kvSet("login_fails", { fails, until: fails >= 5 ? Date.now() + 15 * 60_000 : undefined });
 }
 
+// ---------- TRX ----------
+export interface TrxLog { id?: number; date: string; session: string; exercises: number; rounds: number; work: number; rest: number; minutes: number; rpe: number | null }
+export async function addTrxLog(l: TrxLog): Promise<number> {
+  const r = await q(
+    "INSERT INTO trx_log(date,session,exercises,rounds,work,rest,minutes,rpe) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id",
+    [l.date, l.session, l.exercises, l.rounds, l.work, l.rest, l.minutes, l.rpe],
+  );
+  return Number(r[0].id);
+}
+export async function recentTrxLogs(limit = 10): Promise<TrxLog[]> {
+  const r = await q("SELECT id, to_char(date,'YYYY-MM-DD') AS date, session, exercises, rounds, work, rest, minutes, rpe FROM trx_log ORDER BY date DESC, id DESC LIMIT $1", [limit]);
+  return r.map((x) => ({ id: Number(x.id), date: String(x.date), session: String(x.session), exercises: Number(x.exercises), rounds: Number(x.rounds), work: Number(x.work), rest: Number(x.rest), minutes: Number(x.minutes), rpe: x.rpe == null ? null : Number(x.rpe) }));
+}
+
 // ---------- privacy ----------
 /** Deletes every stored record (tokens, activities, health data, plan changes). */
 export async function deleteAllData() {
-  for (const t of ["activities", "wellness", "overrides", "day_status", "proposals", "garmin_pushes", "extra_status", "garmin_extra_pushes", "locks", "kv"]) {
+  for (const t of ["activities", "wellness", "overrides", "day_status", "proposals", "garmin_pushes", "extra_status", "garmin_extra_pushes", "trx_log", "locks", "kv"]) {
     await q(`DELETE FROM ${t}`);
   }
 }

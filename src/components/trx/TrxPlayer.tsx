@@ -1,10 +1,11 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { markExtra } from "@/app/actions";
-import { pick, tr } from "@/lib/i18n";
+import { useRouter } from "next/navigation";
+import { logTrx } from "@/app/actions";
+import { pick } from "@/lib/i18n";
 import { ROUND_WORD, TRX, timeline, totalSec, type Block, type Session, type Settings } from "@/lib/trx";
 import type { Lang } from "@/lib/types";
-import { ActionForm, SubmitButton } from "../ActionForm";
+import { useToast } from "../Toast";
 import { ExerciseCard } from "./ExerciseCard";
 import type { Replaces } from "./TrxApp";
 
@@ -43,8 +44,8 @@ export function clearProgress() {
  * throttled tab doesn't make it drift. Beeps for the last 3 s, a voice cue
  * for what comes next, a clear "round done" screen, and the screen stays on.
  */
-export function TrxPlayer({ lang, session, settings, replaces, resume, onExit }: {
-  lang: Lang; session: Session; settings: Settings; replaces: Replaces | null;
+export function TrxPlayer({ lang, session, settings, replaces, resume, today, onExit }: {
+  lang: Lang; session: Session; settings: Settings; replaces: Replaces | null; today: string;
   resume?: { i: number; leftMs: number } | null; onExit: () => void;
 }) {
   const he = lang === "he";
@@ -215,22 +216,7 @@ export function TrxPlayer({ lang, session, settings, replaces, resume, onExit }:
   const modeLabel = mode === "voice" ? (he ? "🗣 קול" : "🗣 Voice") : mode === "beeps" ? (he ? "🔔 צפצופים" : "🔔 Beeps") : (he ? "🌙 שקט" : "🌙 Quiet");
 
   if (done || !b) {
-    return (
-      <div className={`trx trx-play done${mode === "night" ? " night" : ""}`}>
-        <div className="trx-big">🎉</div>
-        <h1>{he ? "סיימת!" : "Done!"}</h1>
-        <p>{he ? `${session.rounds} סבבים, ${session.exercises.length} תרגילים, ${Math.round(total / 60)} דקות.` : `${session.rounds} rounds, ${session.exercises.length} exercises, ${Math.round(total / 60)} min.`}</p>
-        <p className="muted">{he ? "עכשיו 5 דקות גמישות." : "Now 5 min of mobility."}</p>
-        {replaces && (
-          <ActionForm action={markExtra} success={tr(lang)("fb_done")} error={tr(lang)("fb_failed")} redirectTo={`/day/${replaces.date}`} className="row" style={{ justifyContent: "center", margin: "12px 0" }}>
-            <input type="hidden" name="date" value={replaces.date} />
-            <input type="hidden" name="kind" value="strength" />
-            <SubmitButton primary name="status" value="done">{he ? `סמן "${replaces.title}" כבוצע` : `Mark "${replaces.title}" done`}</SubmitButton>
-          </ActionForm>
-        )}
-        <button className={replaces ? "" : "primary"} onClick={() => { clearProgress(); onExit(); }}>{he ? "חזרה" : "Back"}</button>
-      </div>
-    );
+    return <Finished lang={lang} session={session} settings={settings} minutes={Math.max(1, Math.round(total / 60))} replaces={replaces} today={today} night={mode === "night"} onExit={() => { clearProgress(); onExit(); }} />;
   }
 
   const isRest = b.kind !== "work";
@@ -304,5 +290,53 @@ function RoundDots({ round, of, done, he }: { round: number; of: number; done: b
         <span key={k} className={k + 1 < round || (done && k + 1 === round) ? "full" : k + 1 === round ? "now" : ""} />
       ))}
     </span>
+  );
+}
+
+/** End screen: rate the session (RPE 1-10) and save it to the log; marks the planned strength session it replaced. */
+function Finished({ lang, session, settings, minutes, replaces, today, night, onExit }: {
+  lang: Lang; session: Session; settings: Settings; minutes: number; replaces: Replaces | null; today: string; night: boolean; onExit: () => void;
+}) {
+  const he = lang === "he";
+  const toast = useToast();
+  const router = useRouter();
+  const [busy, setBusy] = useState<number | "none" | null>(null);
+  const [saved, setSaved] = useState(false);
+  const save = async (rpe: number | null) => {
+    setBusy(rpe ?? "none");
+    const r = await logTrx({
+      date: replaces?.date ?? today, session: session.id, exercises: session.exercises.length, rounds: session.rounds,
+      work: settings.work, rest: settings.rest, minutes, rpe, markStrength: !!replaces,
+    }).catch(() => ({ ok: false }));
+    setBusy(null);
+    if (!r.ok) { toast("error", he ? "לא נשמר. נסה שוב." : "Not saved. Try again."); return; }
+    setSaved(true);
+    clearProgress();
+    toast("success", replaces ? (he ? `נשמר, ו"${replaces.title}" סומן כבוצע` : `Saved, "${replaces.title}" marked done`) : (he ? "האימון נשמר ביומן" : "Workout saved"));
+    if (replaces) router.push(`/day/${replaces.date}`);
+  };
+  return (
+    <div className={`trx trx-play done${night ? " night" : ""}`}>
+      <div className="trx-big">🎉</div>
+      <h1>{he ? "סיימת!" : "Done!"}</h1>
+      <p>{he ? `${session.rounds} סבבים, ${session.exercises.length} תרגילים, ${minutes} דקות.` : `${session.rounds} rounds, ${session.exercises.length} exercises, ${minutes} min.`}</p>
+      {!saved ? (
+        <div className="card trx-rpe">
+          <b>{he ? "כמה קשה היה?" : "How hard was it?"}</b>
+          <p className="muted" style={{ margin: "2px 0 8px" }}>{he ? "1 קל מאוד · 5 בינוני · 10 מקסימלי. משמש להתאמת זמן העבודה באימון הבא." : "1 very easy · 5 moderate · 10 max. Used to tune the work time next time."}</p>
+          <div className="chips" role="group" aria-label={he ? "דירוג מאמץ" : "Effort rating"}>
+            {Array.from({ length: 10 }, (_, k) => k + 1).map((n) => (
+              <button key={n} disabled={busy !== null} aria-busy={busy === n || undefined} onClick={() => save(n)}>{n}</button>
+            ))}
+          </div>
+          <button className="link" disabled={busy !== null} onClick={() => save(null)} style={{ marginTop: 6 }}>
+            {replaces ? (he ? `שמור בלי דירוג וסמן "${replaces.title}" כבוצע` : `Save without rating, mark "${replaces.title}" done`) : (he ? "שמור בלי דירוג" : "Save without rating")}
+          </button>
+        </div>
+      ) : (
+        <p className="muted">{he ? "נשמר. עכשיו 5 דקות גמישות." : "Saved. Now 5 min of mobility."}</p>
+      )}
+      <button className={saved ? "primary" : ""} onClick={() => { if (saved) router.refresh(); onExit(); }}>{he ? (saved ? "חזרה" : "יציאה בלי לשמור") : (saved ? "Back" : "Leave without saving")}</button>
+    </div>
   );
 }

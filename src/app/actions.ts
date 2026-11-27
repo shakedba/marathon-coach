@@ -150,3 +150,24 @@ export async function rateEffort(form: FormData): Promise<{ ok: boolean; message
   revalidatePath("/", "layout");
   return { ok: true };
 }
+
+// ---------- TRX ----------
+
+/** Save a finished TRX workout (with optional session RPE); optionally marks the planned strength session it replaced as done. */
+export async function logTrx(input: unknown): Promise<{ ok: boolean }> {
+  const { parseTrxLog } = await import("@/lib/trx");
+  const v = parseTrxLog(input, todayLocal());
+  if (!v) return { ok: false };
+  await db.addTrxLog(v.log);
+  if (v.markStrength) await db.setExtraStatus(v.log.date, "strength", "done");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** "My workout" is kept in the account so it shows on every device. */
+export async function saveTrxCustom(ids: unknown): Promise<{ ok: boolean }> {
+  const { customSession } = await import("@/lib/trx");
+  const list = customSession(ids).exercises.slice(0, 20);
+  await db.kvSet("trx_custom", list);
+  return { ok: true };
+}

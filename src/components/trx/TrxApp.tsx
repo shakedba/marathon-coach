@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { pick } from "@/lib/i18n";
-import { DEFAULTS, SESSIONS, TRX, customSession, timeline, totalSec, type Advice, type Area, type Session, type Settings } from "@/lib/trx";
+import { saveTrxCustom } from "@/app/actions";
+import { DEFAULTS, SESSIONS, TRX, WORK_STEPS, customSession, suggestWork, timeline, totalSec, type Advice, type Area, type LoggedTrx, type Session, type Settings } from "@/lib/trx";
 import type { Lang, Text } from "@/lib/types";
 import { TrxFigure } from "./TrxFigure";
 import { ExerciseCard } from "./ExerciseCard";
@@ -20,7 +21,10 @@ type View = { v: "home" } | { v: "ex"; id: string } | { v: "play"; session: Sess
 
 export interface Replaces { date: string; title: string; today: boolean }
 
-export function TrxApp({ lang, advice, initial, replaces }: { lang: Lang; advice: Advice; initial: { session: Session["id"]; rounds: number } | null; replaces: Replaces | null }) {
+export function TrxApp({ lang, advice, initial, replaces, today, account }: {
+  lang: Lang; advice: Advice; initial: { session: Session["id"]; rounds: number } | null; replaces: Replaces | null;
+  today: string; account: { custom: string[] | null; logs: LoggedTrx[] };
+}) {
   const he = lang === "he";
   const L = (x: Text) => pick(lang, x);
   const [view, setView] = useState<View>({ v: "home" });
@@ -35,14 +39,19 @@ export function TrxApp({ lang, advice, initial, replaces }: { lang: Lang; advice
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) ?? "null");
       if (saved && typeof saved.work === "number" && typeof saved.rest === "number") setSet((s) => ({ ...s, work: saved.work, rest: saved.rest }));
-      setCustom(customSession(JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? "[]")).exercises);
+      // The account copy wins; the device copy covers a database hiccup.
+      setCustom(customSession(account.custom ?? JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? "[]")).exercises);
     } catch { /* storage unavailable */ }
     setPausedRun(loadProgress());
   }, []);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const saveCustom = (ids: string[]) => {
     setCustom(ids);
     try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(ids)); } catch { /* ignore */ }
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => { saveTrxCustom(ids).catch(() => { /* kept on the device */ }); }, 700);
   };
+  const suggestion = suggestWork(account.logs, set.work, today);
   const update = (p: Partial<Settings>) => {
     setSet((s) => {
       const n = { ...s, ...p };
@@ -55,7 +64,7 @@ export function TrxApp({ lang, advice, initial, replaces }: { lang: Lang; advice
   const minutes = useMemo(() => Math.round(totalSec(timeline(session, set)) / 60), [session, set]);
 
   if (view.v === "play") {
-    return <TrxPlayer lang={lang} session={view.session} settings={view.settings} resume={view.resume} replaces={replaces}
+    return <TrxPlayer lang={lang} session={view.session} settings={view.settings} resume={view.resume} replaces={replaces} today={today}
       onExit={() => { setPausedRun(null); setView({ v: "home" }); }} />;
   }
 
@@ -127,7 +136,13 @@ export function TrxApp({ lang, advice, initial, replaces }: { lang: Lang; advice
 
       <div className="card">
         <Stepper label={he ? "סבבים" : "Rounds"} value={set.rounds} options={[1, 2, 3]} onChange={(rounds) => update({ rounds })} />
-        <Stepper label={he ? "עבודה (שנ')" : "Work (s)"} value={set.work} options={[30, 40, 45]} onChange={(work) => update({ work })} />
+        <Stepper label={he ? "עבודה (שנ')" : "Work (s)"} value={set.work} options={[...WORK_STEPS]} onChange={(work) => update({ work })} />
+        {suggestion && (
+          <div className={`trx-suggest ${suggestion.dir}`}>
+            <span>{suggestion.dir === "up" ? "📈 " : "📉 "}{L(suggestion.why)}</span>
+            <button onClick={() => update({ work: suggestion.work })}>{he ? `עבור ל-${suggestion.work}` : `Use ${suggestion.work} s`}</button>
+          </div>
+        )}
         <Stepper label={he ? "מנוחה (שנ')" : "Rest (s)"} value={set.rest} options={[15, 20, 30]} onChange={(rest) => update({ rest })} />
         <p className="muted" style={{ margin: "8px 0 0" }}>
           {he ? `כ-${minutes} דקות. תרגיל לכל צד: ${Math.max(20, set.work - 10)} שנ' לכל צד.` : `About ${minutes} min. One-side exercises: ${Math.max(20, set.work - 10)} s per side.`}
@@ -136,6 +151,20 @@ export function TrxApp({ lang, advice, initial, replaces }: { lang: Lang; advice
           ▶ {session.exercises.length ? (he ? "התחל אימון" : "Start workout") : (he ? "בחר לפחות תרגיל אחד" : "Pick at least one exercise")}
         </button>
       </div>
+
+      {account.logs.length > 0 && (
+        <>
+          <h2>{he ? "אימונים אחרונים" : "Recent workouts"}</h2>
+          <ul className="trx-hist card">
+            {account.logs.slice(0, 5).map((l) => (
+              <li key={l.date + l.session + l.minutes + (l as { id?: number }).id} className="spread">
+                <span><bdi className="ltr">{l.date.slice(8)}/{l.date.slice(5, 7)}</bdi> · {L((SESSIONS.find((x) => x.id === l.session) ?? customSession([])).name)}</span>
+                <span className="muted">{l.rounds}×{l.exercises} · {l.work}{he ? "ש'" : "s"} · {l.minutes} {he ? "דק'" : "min"}{l.rpe ? ` · RPE ${l.rpe}` : ""}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       {sessionId !== "custom" && <>
       <h2>{he ? "התרגילים באימון" : "Exercises in this workout"}</h2>

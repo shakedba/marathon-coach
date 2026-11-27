@@ -162,3 +162,41 @@ describe("own workout and rounds", () => {
     expect(ROUND_WORD.length).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe("TRX log and progression", () => {
+  const base = { session: "full", exercises: 10, rounds: 3, work: 40, rest: 20, minutes: 30 };
+
+  it("accepts a valid finished workout and rejects bad or out-of-range input", async () => {
+    const { parseTrxLog } = await import("./trx");
+    expect(parseTrxLog({ ...base, date: "2026-12-22", rpe: 6, markStrength: true }, "2026-12-22")).toEqual({ log: { ...base, date: "2026-12-22", rpe: 6 }, markStrength: true });
+    expect(parseTrxLog({ ...base, date: "2026-12-22", rpe: null }, "2026-12-22")?.log.rpe).toBeNull();
+    expect(parseTrxLog({ ...base, date: "2026-12-23" }, "2026-12-22")).toBeNull(); // future
+    expect(parseTrxLog({ ...base, date: "2026-11-01" }, "2026-12-22")).toBeNull(); // too old
+    expect(parseTrxLog({ ...base, date: "2026-12-22", rpe: 11 }, "2026-12-22")).toBeNull();
+    expect(parseTrxLog({ ...base, date: "2026-12-22", session: "drop table" }, "2026-12-22")).toBeNull();
+    expect(parseTrxLog({ ...base, date: "2026-12-22", work: 40.5 }, "2026-12-22")).toBeNull();
+    expect(parseTrxLog("x", "2026-12-22")).toBeNull();
+  });
+
+  const log = (date: string, work: number, rpe: number | null) => ({ ...base, date, work, rpe });
+
+  it("two easy workouts in a build week -> one step up", async () => {
+    const { suggestWork } = await import("./trx");
+    const s = suggestWork([log("2026-12-24", 40, 4), log("2026-12-22", 40, 5)], 40, "2026-12-26");
+    expect(s).toMatchObject({ work: 45, dir: "up" });
+  });
+
+  it("no step up in recovery or taper weeks, or if the easy ones were at another work time", async () => {
+    const { suggestWork } = await import("./trx");
+    expect(suggestWork([log("2026-12-01", 40, 3), log("2026-11-30", 40, 3)], 40, "2026-12-02")).toBeNull(); // recovery
+    expect(suggestWork([log("2027-02-10", 40, 3), log("2027-02-09", 40, 3)], 40, "2027-02-11")).toBeNull(); // taper
+    expect(suggestWork([log("2026-12-24", 35, 4), log("2026-12-22", 35, 4)], 40, "2026-12-26")).toBeNull();
+  });
+
+  it("a very hard workout -> one step down, in any phase; old ratings are ignored", async () => {
+    const { suggestWork } = await import("./trx");
+    expect(suggestWork([log("2027-02-10", 45, 9)], 45, "2027-02-11")).toMatchObject({ work: 40, dir: "down" });
+    expect(suggestWork([log("2026-11-01", 45, 9)], 45, "2026-12-26")).toBeNull();
+    expect(suggestWork([log("2026-12-24", 30, 9)], 30, "2026-12-26")).toBeNull(); // already at the bottom
+  });
+});

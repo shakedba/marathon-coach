@@ -3,7 +3,8 @@ import { todayLocal } from "@/lib/dates";
 import { strengthFor } from "@/lib/extras";
 import { pick } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
-import { adviceFor, sessionById, trxAlternative } from "@/lib/trx";
+import * as db from "@/lib/db";
+import { adviceFor, sessionById, trxAlternative, type LoggedTrx } from "@/lib/trx";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -17,12 +18,19 @@ export default async function TrxPage({ searchParams }: { searchParams: Promise<
   const alt = planned ? trxAlternative(planned) : null;
   const s = typeof q.s === "string" && sessionById(q.s) ? q.s : alt?.session;
   const r = Number(q.r);
+  // Account data is a bonus: the timer works even if the database is unreachable.
+  const [custom, logs] = await Promise.all([
+    db.kvGet<string[]>("trx_custom").catch(() => null),
+    db.recentTrxLogs(10).catch(() => [] as LoggedTrx[]),
+  ]);
   return (
     <TrxApp
       lang={lang}
       advice={adviceFor(d)}
       initial={s ? { session: s as "full" | "light" | "upper", rounds: r >= 1 && r <= 3 ? r : alt?.rounds ?? 2 } : null}
       replaces={planned ? { date: d, title: pick(lang, planned.title), today: d === today } : null}
+      today={today}
+      account={{ custom, logs }}
     />
   );
 }
